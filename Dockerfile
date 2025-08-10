@@ -13,21 +13,29 @@ RUN apk add --no-cache \
 # Instalar npm más reciente
 RUN npm install -g npm@latest
 
-# Copiar archivos de configuración
+# Copiar archivos de configuración PRIMERO
 COPY package.json ./
 COPY package-lock.json* ./
 COPY vite.config.js* ./
 COPY tailwind.config.js* ./
 COPY postcss.config.js* ./
 
-# Limpiar cache y resolver dependencias
+# Limpiar cache de npm
 RUN npm cache clean --force
 
-# Instalar dependencias con manejo de errores
-RUN npm install --legacy-peer-deps --no-audit --no-fund || \
-    (rm -rf node_modules package-lock.json && npm install --legacy-peer-deps --no-audit --no-fund)
+# Estrategia mejorada para instalación de dependencias
+RUN if [ -f "package-lock.json" ]; then \
+        echo "📦 Usando npm ci con package-lock.json existente..." && \
+        npm ci --legacy-peer-deps --no-audit --no-fund; \
+    else \
+        echo "📦 No existe package-lock.json, usando npm install..." && \
+        npm install --legacy-peer-deps --no-audit --no-fund; \
+    fi || \
+    (echo "❌ Primer intento falló, limpiando e intentando nuevamente..." && \
+     rm -rf node_modules package-lock.json && \
+     npm install --legacy-peer-deps --no-audit --no-fund)
 
-# Copiar código fuente completo
+# Copiar código fuente completo DESPUÉS de instalar dependencias
 COPY . .
 
 # Construir assets para producción
