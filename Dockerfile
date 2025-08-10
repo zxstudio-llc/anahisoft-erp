@@ -55,12 +55,21 @@ RUN composer install --no-dev --no-scripts --prefer-dist --optimize-autoloader
 FROM node:20-alpine AS frontend-builder
 
 WORKDIR /app
-COPY package.json package-lock.json ./
+COPY package.json ./
+
+# Copiar package-lock.json si existe
+COPY package-lock.json .npm-lock-temp  || true
+RUN if [ -f .npm-lock-temp ]; then mv .npm-lock-temp package-lock.json; fi
 
 # Instalar dependencias del sistema necesarias para compilar dependencias nativas de Node
 RUN apk add --no-cache python3 make g++ libc6-compat
 
-RUN npm ci --legacy-peer-deps
+# Usar npm ci si hay lockfile, si no usar npm install
+RUN if [ -f package-lock.json ]; then \
+        npm ci --legacy-peer-deps; \
+    else \
+        npm install --legacy-peer-deps; \
+    fi
 
 COPY . .
 RUN npm run build
@@ -93,4 +102,4 @@ RUN if [ -f /var/www/html/.env.production ]; then \
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 
 # Comando por defecto (puedes cambiarlo por Octane si quieres)
-CMD ["php-fpm"] 
+CMD ["php-fpm"]
