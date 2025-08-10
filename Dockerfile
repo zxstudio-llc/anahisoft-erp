@@ -1,58 +1,94 @@
-# Stage 1: Frontend Assets build (usando Node.js + npm)
-FROM node:20-alpine AS frontend-builder
+# Stage 1: Build frontend assets (React)
+FROM node:20-alpine AS frontend
 
 WORKDIR /app
 
-# Copia solo los archivos necesarios para npm install (optimización de caché de Docker)
+# Cache node_modules
 COPY package.json package-lock.json ./
-RUN npm install --silent --no-audit --progress=false
+RUN npm ci --silent
 
-# Copia el resto y construye los assets de React
-COPY resources/ ./resources/
-COPY vite.config.ts ./
-RUN npm run build  # Esto generará los assets en /app/public/build/
+# Copy frontend files
+COPY resources/js ./resources/js
+COPY resources/css ./resources/css
+COPY vite.config.js tailwind.config.js postcss.config.js ./
 
-# Stage 2: Backend (PHP + FrankenPHP)
-FROM dunglas/frankenphp:1.4.0-php8.3-alpine AS base
+# Build assets
+RUN npm run build
 
-# Configuración de usuario y permisos
-RUN addgroup -g 1000 appgroup && \
-    adduser -u 1000 -G appgroup -h /app -s /bin/sh -D appuser && \
-    mkdir -p /data/caddy /config/caddy /home/.local/share/caddy && \
-    chown -R appuser:appgroup /data /config /home/.local
+# Stage 2: Build PHP backend (Laravel)
+FROM php:8.3-fpm-alpine AS backend
 
-# Variables de entorno de Caddy
-ENV XDG_CONFIG_HOME=/config \
-    XDG_DATA_HOME=/data
+# Install system dependencies
+RUN apk add --no-cache \
+    bash \
+    git \
+    unzip \
+    libzip-dev \
+    oniguruma-dev \
+    icu-dev \
+    postgresql-dev \
+    libpng-dev \
+    libjpeg-turbo-dev \
+    freetype-dev
 
-# Instalar Composer y extensiones PHP
+# Install PHP extensions
+RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install -j$(nproc) \
+    pdo_mysql \
+    pdo_pgsql \
+    mbstring \
+    xml \
+    intl \
+    bcmath \
+    opcache \
+    zip \
+    gd
+
+# Install Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
-RUN install-php-extensions pcntl intl pdo_mysql zip bcmath && \
-    rm -rf /tmp/* /var/cache/apk/*
 
-# Configuración de PHP para producción
-ENV APP_ENV=production \
-    APP_DEBUG=false \
-    OCTANE_SERVER=frankenphp
-COPY docker/php/production.ini $PHP_INI_DIR/conf.d/
-RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
+WORKDIR /var/www/html
 
-# Copia el código de Laravel e instala dependencias
-WORKDIR /app
-COPY --chown=appuser:appgroup . .
+# Copy Laravel files
+COPY . .
 
-# Copia los assets construidos desde la etapa frontend-builder
-COPY --from=frontend-builder --chown=appuser:appgroup /app/public/build/ ./public/build/
+# Install PHP dependencies (production only)
+RUN composer install --no-dev --optimize-autoloader --no-interaction
 
-# Optimiza Laravel y limpia archivos innecesarios
-RUN composer install --no-dev --optimize-autoloader && \
-    php artisan optimize && \
-    php artisan view:cache && \
-    php artisan config:cache && \
-    php artisan route:cache && \
-    chmod -R 755 storage bootstrap/cache && \
-    rm -rf tests node_modules docker .git*
+# Stage 3: Production image
+FROM php:8.3-fpm-alpine
 
-USER appuser
-EXPOSE 8000
-ENTRYPOINT ["php", "artisan", "octane:start", "--host=0.0.0.0"]
+# Copy PHP extensions and config from backend builder
+COPY --from=backend /usr/local/etc/php/conf.d/ /usr/local/etc/php/conf.d/
+COPY --from=backend /usr/local/lib/php/extensions/ /usr/local/lib/php/extensions/
+COPY --from=backend /var/www/html /var/www/html
+
+# Copy built assets from frontend
+COPY --from=frontend /app/public/build /var/www/html/public/build
+
+# Runtime dependencies
+RUN apk add --no-cache \
+    nginx \
+    supervisor \
+    libzip \
+    icu \
+    oniguruma \
+    libpng \
+    libjpeg-turbo \
+    freetype
+
+# Config files
+COPY docker/nginx.conf /etc/nginx/nginx.conf
+COPY docker/opcache.ini /usr/local/etc/php/conf.d/opcache.ini
+COPY docker/php.ini /usr/local/etc/php/php.ini
+COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+
+# Permissions
+RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s \
+  CMD php artisan health:check || exit 1
+
+EXPOSE 80
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
