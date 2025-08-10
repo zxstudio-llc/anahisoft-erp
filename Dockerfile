@@ -4,12 +4,12 @@ FROM node:20-alpine AS frontend-builder
 WORKDIR /app
 
 # Copia solo los archivos necesarios para npm install (optimización de caché de Docker)
-COPY package.json package-lock.json /app/
+COPY package.json package-lock.json ./
 RUN npm ci --silent
 
 # Copia el resto y construye los assets de React
-COPY resources/ /app/resources/
-COPY vite.config.ts /app/
+COPY resources/ ./resources/
+COPY vite.config.ts ./
 RUN npm run build  # Esto generará los assets en /app/public/build/
 
 # Stage 2: Backend (PHP + FrankenPHP)
