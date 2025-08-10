@@ -5,7 +5,7 @@ WORKDIR /app
 
 # Copia solo los archivos necesarios para npm install (optimización de caché de Docker)
 COPY package.json package-lock.json ./
-RUN npm ci --silent
+RUN npm install --silent --no-audit --progress=false
 
 # Copia el resto y construye los assets de React
 COPY resources/ ./resources/
