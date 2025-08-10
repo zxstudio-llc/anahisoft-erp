@@ -72,8 +72,15 @@ RUN install-php-extensions \
     opcache && \
     rm -rf /tmp/* /var/cache/apk/*
 
-# Configurar PHP para producción
-COPY docker/php/production.ini $PHP_INI_DIR/conf.d/ || echo "No production.ini found, using defaults"
+# Configurar PHP para producción (si existe el archivo)
+RUN if [ -f docker/php/production.ini ]; then \
+        cp docker/php/production.ini $PHP_INI_DIR/conf.d/; \
+        echo "Custom production.ini copied to PHP conf.d"; \
+    else \
+        echo "No production.ini found, using default PHP configuration"; \
+    fi
+
+# Copiar archivo php.ini de producción que viene por defecto con PHP
 RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
 
 # Configurar directorio de trabajo
