@@ -1,29 +1,56 @@
-# Stage 1: Frontend Assets build
+# Stage 1: Frontend Assets build para Inertia
 FROM node:20-alpine AS frontend-builder
 
 WORKDIR /app
-COPY package*.json ./
-RUN npm ci --silent
+
+# Instalar dependencias del sistema necesarias para compilación
+RUN apk add --no-cache \
+    python3 \
+    make \
+    g++ \
+    git
+
+# Instalar npm más reciente
+RUN npm install -g npm@latest
+
+# Copiar archivos de configuración
+COPY package.json ./
+COPY package-lock.json* ./
+COPY vite.config.js* ./
+COPY tailwind.config.js* ./
+COPY postcss.config.js* ./
+
+# Limpiar cache y resolver dependencias
+RUN npm cache clean --force
+
+# Instalar dependencias con manejo de errores
+RUN npm install --legacy-peer-deps --no-audit --no-fund || \
+    (rm -rf node_modules package-lock.json && npm install --legacy-peer-deps --no-audit --no-fund)
+
+# Copiar código fuente completo
 COPY . .
+
+# Construir assets para producción
 RUN npm run build
 
-# Stage 2: Final image
+# Verificar que el build fue exitoso
+RUN ls -la public/build/ || echo "Build directory not found, checking for dist/" && ls -la dist/ || echo "No build output found"
+
+# Stage 2: Aplicación Laravel con FrankenPHP
 FROM dunglas/frankenphp:1.4.0-php8.3-alpine AS base
 
-# Create required directories with proper permissions
+# Crear directorios y usuario
 RUN mkdir -p /data/caddy /config/caddy /home/.local/share/caddy && \
     chmod -R 755 /data /config /home/.local && \
-    # Add non-root user
     addgroup -g 1000 appgroup && \
     adduser -u 1000 -G appgroup -h /app -s /bin/sh -D appuser && \
-    # Give ownership of Caddy directories
     chown -R appuser:appgroup /data /config /home/.local
 
-# Set Caddy environment variables
+# Variables de entorno de Caddy
 ENV XDG_CONFIG_HOME=/config \
     XDG_DATA_HOME=/data
 
-# Install composer and PHP extensions (AGREGADO PostgreSQL)
+# Instalar Composer y extensiones PHP necesarias
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 RUN install-php-extensions \
     pcntl \
@@ -32,69 +59,134 @@ RUN install-php-extensions \
     pdo_pgsql \
     pgsql \
     zip \
-    bcmath && \
-    # Cleanup
+    bcmath \
+    redis \
+    opcache && \
     rm -rf /tmp/* /var/cache/apk/*
 
-# Configure PHP for production
-COPY docker/php/production.ini $PHP_INI_DIR/conf.d/
+# Configurar PHP para producción
+COPY docker/php/production.ini $PHP_INI_DIR/conf.d/ || echo "No production.ini found, using defaults"
 RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
 
-# Set up application
+# Configurar directorio de trabajo
 WORKDIR /app
+
+# Copiar código de la aplicación
 COPY --chown=appuser:appgroup . .
 
-# Copy production environment file
+# Copiar archivo de configuración de producción
 COPY .env.production .env
-COPY --from=frontend-builder --chown=appuser:appgroup /app/public/build/ ./public/build/
 
-# Install dependencies WITHOUT running post-install scripts during build
-RUN composer install --prefer-dist --optimize-autoloader --no-scripts && \
-    # Set proper permissions
+# Copiar assets compilados del frontend
+COPY --from=frontend-builder --chown=appuser:appgroup /app/public/build ./public/build
+COPY --from=frontend-builder --chown=appuser:appgroup /app/public/hot ./public/hot 2>/dev/null || true
+
+# Instalar dependencias de PHP sin scripts durante build
+ENV DOCKER_BUILD=true
+RUN composer install --prefer-dist --optimize-autoloader --no-scripts --no-dev && \
+    composer dump-autoload --optimize --classmap-authoritative && \
     chown -R appuser:appgroup /app && \
     chmod -R 755 storage bootstrap/cache && \
-    rm -rf tests node_modules docker .git* && \
+    # Crear directorios necesarios para Laravel
+    mkdir -p storage/logs storage/framework/sessions storage/framework/views storage/framework/cache && \
+    chmod -R 775 storage && \
+    rm -rf tests node_modules docker .git* .npm && \
     composer clear-cache
 
-# Create entrypoint script inline
+# Crear script de inicialización optimizado para Inertia
 RUN cat > /usr/local/bin/docker-entrypoint.sh << 'EOF'
 #!/bin/sh
 set -e
 
-echo "Starting Laravel application initialization..."
+echo "🚀 Iniciando aplicación Laravel con Inertia..."
 
-# Run composer scripts that were skipped during build
-echo "Running composer post-autoload-dump..."
+# Ejecutar scripts de composer omitidos durante build
+echo "📦 Ejecutando scripts de composer..."
 composer run-script post-autoload-dump --no-interaction
 
-# Wait for database to be ready (optional, useful for docker-compose)
-echo "Waiting for database connection..."
-php artisan tinker --execute="DB::connection()->getPdo(); echo 'Database connected successfully';" || {
-    echo "Warning: Could not connect to database immediately, will retry during migration"
-}
+# Verificar que los assets de Inertia existen
+echo "🎨 Verificando assets de Inertia..."
+if [ -d "public/build" ]; then
+    echo "✅ Assets de frontend encontrados:"
+    ls -la public/build/
+else
+    echo "❌ Error: No se encontraron assets compilados de frontend"
+    echo "🔍 Listando contenido de public/:"
+    ls -la public/
+    exit 1
+fi
 
-# Run migrations
-echo "Running database migrations..."
+# Configurar conexión a base de datos con reintentos
+echo "🔌 Configurando conexión a base de datos..."
+max_attempts=60
+attempt=1
+
+while [ $attempt -le $max_attempts ]; do
+    echo "🔄 Intento de conexión $attempt/$max_attempts..."
+    if php artisan tinker --execute="
+        try {
+            DB::connection()->getPdo();
+            echo 'Conexión exitosa a: ' . config('database.connections.pgsql.host') . ':' . config('database.connections.pgsql.port') . PHP_EOL;
+            exit(0);
+        } catch (Exception \$e) {
+            echo 'Error de conexión: ' . \$e->getMessage() . PHP_EOL;
+            exit(1);
+        }
+    " 2>/dev/null; then
+        echo "✅ Base de datos conectada exitosamente!"
+        break
+    fi
+    
+    if [ $attempt -eq $max_attempts ]; then
+        echo "❌ Error: No se pudo conectar a la base de datos después de $max_attempts intentos"
+        echo "🔍 Configuración actual:"
+        echo "DB_HOST: $(php artisan tinker --execute='echo env("DB_HOST");' 2>/dev/null || echo 'N/A')"
+        echo "DB_PORT: $(php artisan tinker --execute='echo env("DB_PORT");' 2>/dev/null || echo 'N/A')"
+        echo "DB_DATABASE: $(php artisan tinker --execute='echo env("DB_DATABASE");' 2>/dev/null || echo 'N/A')"
+        exit 1
+    fi
+    
+    sleep 3
+    attempt=$((attempt + 1))
+done
+
+# Ejecutar migraciones
+echo "🗄️  Ejecutando migraciones de base de datos..."
 php artisan migrate --force
 
-# Clear and cache configuration
-echo "Optimizing Laravel..."
+# Limpiar y optimizar cachés
+echo "⚡ Optimizando aplicación..."
 php artisan optimize:clear
 php artisan config:cache
 php artisan route:cache
 php artisan view:cache
 php artisan event:cache
 
-echo "Starting Octane server..."
-exec php artisan octane:start --host=0.0.0.0 --port=8000
+# Verificar configuración de Inertia
+echo "🔧 Verificando configuración de Inertia..."
+php artisan tinker --execute="
+    echo 'APP_URL: ' . config('app.url') . PHP_EOL;
+    echo 'Asset URL: ' . asset('') . PHP_EOL;
+    if (class_exists('Inertia\Inertia')) {
+        echo 'Inertia está instalado correctamente' . PHP_EOL;
+    } else {
+        echo 'Advertencia: Inertia no parece estar disponible' . PHP_EOL;
+    }
+"
+
+echo "🎉 ¡Aplicación Laravel con Inertia lista!"
+echo "🌐 Iniciando servidor Octane en puerto 8000..."
+exec php artisan octane:start --host=0.0.0.0 --port=8000 --workers=4 --task-workers=2
 EOF
 
-# Make entrypoint executable
+# Hacer ejecutable el script
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
+# Cambiar a usuario no privilegiado
 USER appuser
 
-# Expose port
+# Exponer puerto
 EXPOSE 8000
 
+# Punto de entrada
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
