@@ -1,15 +1,10 @@
 # Stage 1: Frontend Assets build
-# FROM oven/bun:1-slim AS node-builder
-# WORKDIR /app
-# COPY . .
-# RUN bun install --frozen-lockfile
-# RUN bun run build
-
 FROM node:20-alpine AS frontend-builder
 
 WORKDIR /app
-COPY . .
+COPY package*.json ./
 RUN npm ci --silent
+COPY . .
 RUN npm run build
 
 # Stage 2: Final image
@@ -28,21 +23,18 @@ RUN mkdir -p /data/caddy /config/caddy /home/.local/share/caddy && \
 ENV XDG_CONFIG_HOME=/config \
     XDG_DATA_HOME=/data
 
-# Install composer and PHP extensions
+# Install composer and PHP extensions (AGREGADO PostgreSQL)
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 RUN install-php-extensions \
     pcntl \
     intl \
     pdo_mysql \
+    pdo_pgsql \
+    pgsql \
     zip \
     bcmath && \
     # Cleanup
     rm -rf /tmp/* /var/cache/apk/*
-
-# Environment configuration
-ENV APP_ENV=production \
-    APP_DEBUG=false \
-    OCTANE_SERVER=frankenphp
 
 # Configure PHP for production
 COPY docker/php/production.ini $PHP_INI_DIR/conf.d/
@@ -51,24 +43,58 @@ RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
 # Set up application
 WORKDIR /app
 COPY --chown=appuser:appgroup . .
-COPY --from=node-builder --chown=appuser:appgroup /app/public/build/ ./public/build/
 
-# Install dependencies and optimize
-RUN composer install --prefer-dist --optimize-autoloader && \
-    php artisan optimize && \
-    php artisan view:cache && \
-    php artisan config:cache && \
-    php artisan route:cache && \
-    php artisan event:cache && \
+# Copy production environment file
+COPY .env.production .env
+COPY --from=frontend-builder --chown=appuser:appgroup /app/public/build/ ./public/build/
+
+# Install dependencies WITHOUT running post-install scripts during build
+RUN composer install --prefer-dist --optimize-autoloader --no-scripts && \
     # Set proper permissions
     chown -R appuser:appgroup /app && \
     chmod -R 755 storage bootstrap/cache && \
     rm -rf tests node_modules docker .git* && \
     composer clear-cache
 
+# Create entrypoint script inline
+RUN cat > /usr/local/bin/docker-entrypoint.sh << 'EOF'
+#!/bin/sh
+set -e
+
+echo "Starting Laravel application initialization..."
+
+# Run composer scripts that were skipped during build
+echo "Running composer post-autoload-dump..."
+composer run-script post-autoload-dump --no-interaction
+
+# Wait for database to be ready (optional, useful for docker-compose)
+echo "Waiting for database connection..."
+php artisan tinker --execute="DB::connection()->getPdo(); echo 'Database connected successfully';" || {
+    echo "Warning: Could not connect to database immediately, will retry during migration"
+}
+
+# Run migrations
+echo "Running database migrations..."
+php artisan migrate --force
+
+# Clear and cache configuration
+echo "Optimizing Laravel..."
+php artisan optimize:clear
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+php artisan event:cache
+
+echo "Starting Octane server..."
+exec php artisan octane:start --host=0.0.0.0 --port=8000
+EOF
+
+# Make entrypoint executable
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
 USER appuser
 
 # Expose port
 EXPOSE 8000
 
-ENTRYPOINT ["php", "artisan", "octane:start", "--host=0.0.0.0"]
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
