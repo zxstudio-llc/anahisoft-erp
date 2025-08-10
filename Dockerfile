@@ -9,7 +9,7 @@ RUN npm ci --silent
 
 # Copia el resto y construye los assets de React
 COPY resources/ /app/resources/
-COPY vite.config.js /app/
+COPY vite.config.ts /app/
 RUN npm run build  # Esto generará los assets en /app/public/build/
 
 # Stage 2: Backend (PHP + FrankenPHP)
