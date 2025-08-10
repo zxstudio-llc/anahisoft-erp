@@ -8,10 +8,6 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { CheckIcon, PlusIcon, TrashIcon, Upload, X } from 'lucide-react';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
-import FooterSimple from '@/components/www/Footer-simple'
-import FooterBasic from '@/components/www/Footer-basic'
-// import FooterStandard from '@/components/www/Footer'
-import FooterAdvanced from '@/components/www/Footer-advanced'
 import {
   Select,
   SelectTrigger,
@@ -38,25 +34,10 @@ export default function ManageFooter({
   const [isUploading, setIsUploading] = useState(false);
 
   const template = {
-    simple: {
-      name: 'Simple',
-      description: 'Un footer limpio y minimalista.',
-      preview: <FooterSimple />,
-    },
-    basic: {
-      name: 'Basic',
-      description: 'Footer con estructura básica.',
-      preview: <FooterBasic />,
-    },
     standard: {
       name: 'Standard',
       description: 'Estructura clásica y completa.',
       preview: "",
-    },
-    advanced: {
-      name: 'Advanced',
-      description: 'Footer moderno con newsletter y enlaces.',
-      preview: <FooterAdvanced />,
     },
   }
 
