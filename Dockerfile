@@ -102,7 +102,8 @@ RUN composer install --prefer-dist --optimize-autoloader --no-scripts --no-dev &
     composer clear-cache
 
 # Crear script de inicialización optimizado para Inertia
-RUN cat > /usr/local/bin/docker-entrypoint.sh << 'EOF'
+RUN cat > /usr/local/bin/docker-entrypoint.sh << 'SCRIPT_END' \
+&& chmod +x /usr/local/bin/docker-entrypoint.sh
 #!/bin/sh
 set -e
 
@@ -177,18 +178,17 @@ php artisan tinker --execute="
     echo 'Asset URL: ' . asset('') . PHP_EOL;
     if (class_exists('Inertia\Inertia')) {
         echo 'Inertia está instalado correctamente' . PHP_EOL;
-    } else {
+    else {
         echo 'Advertencia: Inertia no parece estar disponible' . PHP_EOL;
-    }
+    fi
 "
 
 echo "🎉 ¡Aplicación Laravel con Inertia lista!"
 echo "🌐 Iniciando servidor Octane en puerto 8000..."
 exec php artisan octane:start --host=0.0.0.0 --port=8000 --workers=4 --task-workers=2
-EOF
+SCRIPT_END
 
-# Hacer ejecutable el script
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+# El script ya se hizo ejecutable en el paso anterior
 
 # Cambiar a usuario no privilegiado
 USER appuser
