@@ -3,17 +3,17 @@ import { CheckCircle2, LoaderCircle } from 'lucide-react';
 import { FormEventHandler, useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
-import { RucValidationData } from '@/common/interfaces/ruc.interface';
+// import { RucValidationData } from '@/common/interfaces/ruc.interface';
 import { SubscriptionPlan } from '@/common/interfaces/subscription-plan.interface';
-import InputError from '@/components/app/input-error';
-import PaymentModal from '@/components/app/payment-modal';
-import TextLink from '@/components/app/text-link';
+import InputError from '@/components/input-error';
+import PaymentModal from '@/components/payment-modal';
+import TextLink from '@/components/text-link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AuthLayout from '@/layouts/auth/auth-split-layout';
 import Api from '@/lib/api';
-import { PlanSelector } from '@/components/app/plan-selector';
+import { PlanSelector } from '@/components/plan-selector';
 
 type RegisterForm = {
     name: string;

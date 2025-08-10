@@ -2,13 +2,13 @@ import { Head, useForm } from '@inertiajs/react';
 import { Eye, EyeOff, LoaderCircle } from 'lucide-react';
 import { FormEventHandler, useState } from 'react';
 
-import InputError from '@/components/app/input-error';
-import TextLink from '@/components/app/text-link';
+import InputError from '@/components/input-error';
+import TextLink from '@/components/text-link';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import AuthSplitLayout from '@/layouts/auth-split-layout';
+import AuthSplitLayout from '@/layouts/auth/auth-split-layout';
 
 type LoginForm = {
     email: string;

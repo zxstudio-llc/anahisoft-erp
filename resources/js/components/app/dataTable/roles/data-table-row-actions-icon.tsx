@@ -5,7 +5,7 @@ import { SquarePen } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { roleSchema } from "@/data/roleSchema"
 import { useState } from "react"
-import { EditRoleDialog } from "@/pages/admin/roles/edit-role-dialog"
+import { EditRoleDialog } from "@/pages/app/roles/edit-role-dialog"
 
 interface DataTableRowActionsProps<TData> {
   row: Row<TData>
