@@ -40,7 +40,7 @@ FROM composer:2 AS vendor
 
 WORKDIR /app
 COPY composer.json composer.lock ./
-RUN composer install --no-dev --no-scripts --prefer-dist --optimize-autoloader
+RUN COMPOSER_MEMORY_LIMIT=-1 composer install --no-dev --no-scripts --prefer-dist --optimize-autoloader
 
 # =========================
 # Stage Node (build frontend)
