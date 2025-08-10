@@ -30,14 +30,7 @@ RUN apk add --no-cache \
         opcache
 
 # Copiar configuración PHP solo si existe
-RUN if [ -f docker/php/production.ini ]; then \
-        cp docker/php/production.ini $PHP_INI_DIR/conf.d/; \
-        echo "Custom production.ini copied to PHP conf.d"; \
-    else \
-        echo "No production.ini found, using default PHP configuration"; \
-    fi
-
-# Usar php.ini de producción por defecto
+# (este paso se hace después de COPY del proyecto en el stage final)
 RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
 
 # =========================
@@ -55,22 +48,26 @@ RUN composer install --no-dev --no-scripts --prefer-dist --optimize-autoloader
 FROM node:20-alpine AS frontend-builder
 
 WORKDIR /app
+
+# Copiar siempre package.json
 COPY package.json ./
 
-# Copiar package-lock.json si existe
-COPY package-lock.json .npm-lock-temp  || true
-RUN if [ -f .npm-lock-temp ]; then mv .npm-lock-temp package-lock.json; fi
+# Copiar package-lock.json solo si existe
+# Esto NO rompe si falta, porque usamos .dockerignore para permitirlo
+# Si no quieres usar .dockerignore, coméntalo y se hará npm install directamente
+COPY package-lock.json ./package-lock.json
 
 # Instalar dependencias del sistema necesarias para compilar dependencias nativas de Node
 RUN apk add --no-cache python3 make g++ libc6-compat
 
-# Usar npm ci si hay lockfile, si no usar npm install
+# Instalar dependencias según disponibilidad del lockfile
 RUN if [ -f package-lock.json ]; then \
         npm ci --legacy-peer-deps; \
     else \
         npm install --legacy-peer-deps; \
     fi
 
+# Copiar el resto del código y compilar
 COPY . .
 RUN npm run build
 
@@ -89,6 +86,14 @@ COPY --from=frontend-builder /app/public ./public
 
 # Copiar el resto del código fuente
 COPY . .
+
+# Configurar PHP para producción si existe production.ini
+RUN if [ -f docker/php/production.ini ]; then \
+        cp docker/php/production.ini $PHP_INI_DIR/conf.d/; \
+        echo "Custom production.ini copied to PHP conf.d"; \
+    else \
+        echo "No production.ini found, using default PHP configuration"; \
+    fi
 
 # Si existe .env.production, reemplazar .env
 RUN if [ -f /var/www/html/.env.production ]; then \
