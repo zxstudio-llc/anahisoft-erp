@@ -93,4 +93,4 @@ RUN if [ -f /var/www/html/.env.production ]; then \
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 
 # Comando por defecto (puedes cambiarlo por Octane si quieres)
-CMD ["php-fpm"]
+CMD ["php-fpm"] 
