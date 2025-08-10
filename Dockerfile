@@ -101,92 +101,44 @@ RUN composer install --prefer-dist --optimize-autoloader --no-scripts --no-dev &
     rm -rf tests node_modules docker .git* .npm && \
     composer clear-cache
 
-# Crear script de inicialización optimizado para Inertia
-RUN cat > /usr/local/bin/docker-entrypoint.sh << 'SCRIPT_END' \
-&& chmod +x /usr/local/bin/docker-entrypoint.sh
-#!/bin/sh
-set -e
-
-echo "🚀 Iniciando aplicación Laravel con Inertia..."
-
-# Ejecutar scripts de composer omitidos durante build
-echo "📦 Ejecutando scripts de composer..."
-composer run-script post-autoload-dump --no-interaction
-
-# Verificar que los assets de Inertia existen
-echo "🎨 Verificando assets de Inertia..."
-if [ -d "public/build" ]; then
-    echo "✅ Assets de frontend encontrados:"
-    ls -la public/build/
-else
-    echo "❌ Error: No se encontraron assets compilados de frontend"
-    echo "🔍 Listando contenido de public/:"
-    ls -la public/
-    exit 1
-fi
-
-# Configurar conexión a base de datos con reintentos
-echo "🔌 Configurando conexión a base de datos..."
-max_attempts=60
-attempt=1
-
-while [ $attempt -le $max_attempts ]; do
-    echo "🔄 Intento de conexión $attempt/$max_attempts..."
-    if php artisan tinker --execute="
-        try {
-            DB::connection()->getPdo();
-            echo 'Conexión exitosa a: ' . config('database.connections.pgsql.host') . ':' . config('database.connections.pgsql.port') . PHP_EOL;
-            exit(0);
-        } catch (Exception \$e) {
-            echo 'Error de conexión: ' . \$e->getMessage() . PHP_EOL;
-            exit(1);
-        }
-    " 2>/dev/null; then
-        echo "✅ Base de datos conectada exitosamente!"
-        break
-    fi
-    
-    if [ $attempt -eq $max_attempts ]; then
-        echo "❌ Error: No se pudo conectar a la base de datos después de $max_attempts intentos"
-        echo "🔍 Configuración actual:"
-        echo "DB_HOST: $(php artisan tinker --execute='echo env("DB_HOST");' 2>/dev/null || echo 'N/A')"
-        echo "DB_PORT: $(php artisan tinker --execute='echo env("DB_PORT");' 2>/dev/null || echo 'N/A')"
-        echo "DB_DATABASE: $(php artisan tinker --execute='echo env("DB_DATABASE");' 2>/dev/null || echo 'N/A')"
-        exit 1
-    fi
-    
-    sleep 3
-    attempt=$((attempt + 1))
-done
-
-# Ejecutar migraciones
-echo "🗄️  Ejecutando migraciones de base de datos..."
-php artisan migrate --force
-
-# Limpiar y optimizar cachés
-echo "⚡ Optimizando aplicación..."
-php artisan optimize:clear
-php artisan config:cache
-php artisan route:cache
-php artisan view:cache
-php artisan event:cache
-
-# Verificar configuración de Inertia
-echo "🔧 Verificando configuración de Inertia..."
-php artisan tinker --execute="
-    echo 'APP_URL: ' . config('app.url') . PHP_EOL;
-    echo 'Asset URL: ' . asset('') . PHP_EOL;
-    if (class_exists('Inertia\Inertia')) {
-        echo 'Inertia está instalado correctamente' . PHP_EOL;
-    else {
-        echo 'Advertencia: Inertia no parece estar disponible' . PHP_EOL;
-    fi
-"
-
-echo "🎉 ¡Aplicación Laravel con Inertia lista!"
-echo "🌐 Iniciando servidor Octane en puerto 8000..."
-exec php artisan octane:start --host=0.0.0.0 --port=8000 --workers=4 --task-workers=2
-SCRIPT_END
+# Crear script de inicialización de manera más simple
+RUN echo '#!/bin/sh' > /usr/local/bin/docker-entrypoint.sh && \
+    echo 'set -e' >> /usr/local/bin/docker-entrypoint.sh && \
+    echo '' >> /usr/local/bin/docker-entrypoint.sh && \
+    echo 'echo "🚀 Iniciando aplicación Laravel con Inertia..."' >> /usr/local/bin/docker-entrypoint.sh && \
+    echo '' >> /usr/local/bin/docker-entrypoint.sh && \
+    echo '# Ejecutar scripts de composer omitidos durante build' >> /usr/local/bin/docker-entrypoint.sh && \
+    echo 'echo "📦 Ejecutando scripts de composer..."' >> /usr/local/bin/docker-entrypoint.sh && \
+    echo 'composer run-script post-autoload-dump --no-interaction' >> /usr/local/bin/docker-entrypoint.sh && \
+    echo '' >> /usr/local/bin/docker-entrypoint.sh && \
+    echo '# Verificar que los assets de Inertia existen' >> /usr/local/bin/docker-entrypoint.sh && \
+    echo 'echo "🎨 Verificando assets de Inertia..."' >> /usr/local/bin/docker-entrypoint.sh && \
+    echo 'if [ -d "public/build" ]; then' >> /usr/local/bin/docker-entrypoint.sh && \
+    echo '    echo "✅ Assets de frontend encontrados:"' >> /usr/local/bin/docker-entrypoint.sh && \
+    echo '    ls -la public/build/' >> /usr/local/bin/docker-entrypoint.sh && \
+    echo 'else' >> /usr/local/bin/docker-entrypoint.sh && \
+    echo '    echo "❌ Error: No se encontraron assets compilados de frontend"' >> /usr/local/bin/docker-entrypoint.sh && \
+    echo '    echo "🔍 Listando contenido de public/:"' >> /usr/local/bin/docker-entrypoint.sh && \
+    echo '    ls -la public/' >> /usr/local/bin/docker-entrypoint.sh && \
+    echo '    exit 1' >> /usr/local/bin/docker-entrypoint.sh && \
+    echo 'fi' >> /usr/local/bin/docker-entrypoint.sh && \
+    echo '' >> /usr/local/bin/docker-entrypoint.sh && \
+    echo '# Ejecutar migraciones' >> /usr/local/bin/docker-entrypoint.sh && \
+    echo 'echo "🗄️  Ejecutando migraciones de base de datos..."' >> /usr/local/bin/docker-entrypoint.sh && \
+    echo 'php artisan migrate --force' >> /usr/local/bin/docker-entrypoint.sh && \
+    echo '' >> /usr/local/bin/docker-entrypoint.sh && \
+    echo '# Limpiar y optimizar cachés' >> /usr/local/bin/docker-entrypoint.sh && \
+    echo 'echo "⚡ Optimizando aplicación..."' >> /usr/local/bin/docker-entrypoint.sh && \
+    echo 'php artisan optimize:clear' >> /usr/local/bin/docker-entrypoint.sh && \
+    echo 'php artisan config:cache' >> /usr/local/bin/docker-entrypoint.sh && \
+    echo 'php artisan route:cache' >> /usr/local/bin/docker-entrypoint.sh && \
+    echo 'php artisan view:cache' >> /usr/local/bin/docker-entrypoint.sh && \
+    echo 'php artisan event:cache' >> /usr/local/bin/docker-entrypoint.sh && \
+    echo '' >> /usr/local/bin/docker-entrypoint.sh && \
+    echo 'echo "🎉 ¡Aplicación Laravel con Inertia lista!"' >> /usr/local/bin/docker-entrypoint.sh && \
+    echo 'echo "🌐 Iniciando servidor Octane en puerto 8000..."' >> /usr/local/bin/docker-entrypoint.sh && \
+    echo 'exec php artisan octane:start --host=0.0.0.0 --port=8000 --workers=4 --task-workers=2' >> /usr/local/bin/docker-entrypoint.sh && \
+    chmod +x /usr/local/bin/docker-entrypoint.sh
 
 # El script ya se hizo ejecutable en el paso anterior
 
