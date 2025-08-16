@@ -888,7 +888,7 @@ export default function Register({ freePlan, selectedPlan, app_domain, billing_p
         <AuthLayout
             title="Crear una cuenta"
             description="Ingrese su información para crear su cuenta y comenzar a facturar"
-            backgroundImage="/assets/img/bg/auth.jpg"
+            backgroundImage="/images/ANAHISOFT-01.jpg"
         >
             <Head title="Register" />
 

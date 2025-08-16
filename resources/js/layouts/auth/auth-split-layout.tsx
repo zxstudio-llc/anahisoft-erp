@@ -44,12 +44,13 @@ export default function AuthSplitLayout({ children, title, description, backgrou
                         href={route('home')} 
                         className="group flex items-center gap-3 text-lg font-medium text-white transition-colors"
                     >
-                        <div className="rounded-lg bg-white/15 p-2 backdrop-blur-md transition-colors group-hover:bg-white/25 ring-1 ring-white/20">
-                            <AppLogoIcon className="size-6 fill-current text-white drop-shadow-lg" />
-                        </div>
-                        <span className="bg-gradient-to-r from-white to-white/95 bg-clip-text text-transparent drop-shadow-[0_0_0.5rem_rgba(255,255,255,0.5)] font-semibold">
-                            {name}
-                        </span>
+                        <div className="p-2">
+                        	<img
+                                className="h-8 w-auto"
+                                src="/logo.png"
+                                alt="Logo"
+                            />
+			</div>
                     </Link>
 
                     {/* Cita */}

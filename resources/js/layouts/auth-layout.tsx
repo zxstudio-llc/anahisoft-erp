@@ -16,7 +16,7 @@ export default function AuthLayout({ children, title, description, backgroundIma
                     <div
                         className="absolute inset-0 bg-cover"
                         style={{
-                            backgroundImage: `url(${backgroundImage || '/images/auth-background.jpg'})`,
+                            backgroundImage: `url(${backgroundImage || '/assets/img/bg/auth1.jpg'})`,
                         }}
                     />
                     <div className="relative z-20 flex items-center text-lg font-medium">

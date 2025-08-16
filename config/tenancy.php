@@ -17,7 +17,7 @@ return [
      * Only relevant if you're using the domain or subdomain identification middleware.
      */
     'central_domains' => [
-        env('APP_DOMAIN'),
+        env('APP_DOMAIN', 'xiaotianli.com'),
     ],
 
     /**
@@ -167,7 +167,7 @@ return [
         // Stancl\Tenancy\Features\UniversalRoutes::class,
         // Stancl\Tenancy\Features\TenantConfig::class, // https://tenancyforlaravel.com/docs/v3/features/tenant-config
         // Stancl\Tenancy\Features\CrossDomainRedirect::class, // https://tenancyforlaravel.com/docs/v3/features/cross-domain-redirect
-        // Stancl\Tenancy\Features\ViteBundler::class,
+        Stancl\Tenancy\Features\ViteBundler::class,
     ],
 
     /**

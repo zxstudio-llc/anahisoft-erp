@@ -182,7 +182,7 @@ Route::middleware([
         Route::resource('products', ProductController::class, ['as' => 'tenant']);
 
         // Rutas para API Keys
-        Route::resource('api-keys', ApiKeyController::class, ['only' => ['index', 'store', 'destroy']]);
+        //  Route::resource('api-keys', ApiKeyController::class, ['only' => ['index', 'store', 'destroy']]);
         Route::get('api-keys/docs', function () {
             return Inertia::render('Tenant/ApiKeys/ApiDocs');
         })->name('api-keys.docs');

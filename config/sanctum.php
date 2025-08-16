@@ -19,7 +19,8 @@ return [
         '%s%s%s',
         'localhost,localhost:3000,127.0.0.1,127.0.0.1:8000,::1',
         Sanctum::currentApplicationUrlWithPort(),
-        ',.fact.test,*.fact.test'
+        ',.fact.test,*.fact.test',
+	',.xiaotianli.com,*.xiaotianli.com',
     ))),
 
     /*
