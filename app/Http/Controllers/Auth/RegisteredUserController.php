@@ -79,6 +79,7 @@ class RegisteredUserController extends Controller
         'email' => 'required|string|email|max:255|unique:users',
         'password' => ['required', 'confirmed', Rules\Password::defaults()],
         'company_name' => 'required|string|max:255',
+        'ruc' => ['required', 'string', 'size:13', 'unique:tenants,data->ruc'],
         'domain' => ['required', 'string', 'max:255', 'regex:/^[a-z0-9-]+$/'],
         'plan_id' => 'required|exists:subscription_plans,id',
         'billing_period' => 'required|in:monthly,yearly',
@@ -124,7 +125,7 @@ class RegisteredUserController extends Controller
                 : $now->copy()->addMonth();
         }
 
-        // ✅ CORRECCION: Crear el tenant con los campos correctos
+        // ✅ CORRECCION: Crear el tenant con los campos correctos incluyendo RUC
         $tenant = Tenant::create([
             'id' => $request->domain,
             // ✅ CAMPO CORRECTO: usar subscription_plan_id en lugar de plan_id
@@ -137,9 +138,17 @@ class RegisteredUserController extends Controller
             'subscription_ends_at' => $subscriptionEndsAt,
             'data' => [
                 'company_name' => $request->company_name,
+                'ruc' => $request->ruc, // ✅ AGREGAR RUC AL DATA JSON
                 // ✅ AGREGAR DATOS ADICIONALES DEL PLAN
                 'plan_name' => $plan ? $plan->name : 'Plan Gratuito',
                 'plan_price' => $plan ? $plan->price : 0,
+                // ✅ AGREGAR DATOS ADICIONALES DE SUNAT
+                'business_name' => $request->business_name ?? $request->company_name,
+                'status' => $request->status,
+                'taxpayer_status' => $request->taxpayer_status ?? $request->condition,
+                'head_office_address' => $request->head_office_address ?? $request->address,
+                'trade_name' => $request->trade_name,
+                'registration_date' => $request->registration_date,
             ],
         ]);
 
@@ -202,8 +211,8 @@ class RegisteredUserController extends Controller
         // ✅ OPCION 2: Redirigir al login del tenant (más seguro)
         $loginUrl = "https://{$domain->domain}/login";
         
-        // Usar la URL que prefieras
-        $redirectUrl = $dashboardUrl; // Cambiar a $dashboardUrl si prefieres dashboard
+        // Usar la URL de login para que el usuario pueda autenticarse en su tenant
+        $redirectUrl = $loginUrl;
         
         // Si es una petición AJAX (Inertia), retornar JSON
         if ($request->wantsJson() || $request->header('X-Inertia')) {

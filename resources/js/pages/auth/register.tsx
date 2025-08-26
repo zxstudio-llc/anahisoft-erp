@@ -296,13 +296,32 @@ export default function Register({ freePlan, selectedPlan, app_domain, billing_p
         return basePrice;
     };
 
+    const formatPrice = (price: number, billingPeriod: string) => {
+        const finalPrice = calculatePrice(price, billingPeriod);
+        const formatted = new Intl.NumberFormat('es-PE', {
+            style: 'currency',
+            currency: 'PEN',
+            minimumFractionDigits: 2,
+        }).format(finalPrice);
+        
+        if (billingPeriod === 'yearly') {
+            return `${formatted}/año`;
+        }
+        return `${formatted}/mes`;
+    };
+
     const handleRegistration = async (paymentId: string) => {
         const formData = {
             ...data,
             payment_id: paymentId,
+            // Include RUC in data JSON structure
+            ruc: data.ruc,
         };
     
         try {
+            // Show loading state immediately
+            const loadingToast = toast.loading('Creando su cuenta y configurando su sistema...');
+            
             // Usar Axios directamente para tener más control
             const response = await axios.post(route('register'), formData, {
                 headers: {
@@ -313,16 +332,24 @@ export default function Register({ freePlan, selectedPlan, app_domain, billing_p
                 }
             });
     
+            // Dismiss loading toast
+            toast.dismiss(loadingToast);
+    
             if (response.data.success) {
                 toast.success(response.data.message || 'Cuenta creada exitosamente');
                 
                 // Usar la URL de redirección del servidor
-                const redirectUrl = response.data.redirect || `https://${data.domain}.${app_domain}/dashboard`;
+                const redirectUrl = response.data.redirect || `https://${data.domain}.${app_domain}/login`;
+                
+                // Show success message with redirect info
+                toast.success('Redirigiendo a su panel administrativo...', {
+                    duration: 2000,
+                });
                 
                 // Redireccionar después de mostrar el toast
                 setTimeout(() => {
                     window.location.href = redirectUrl;
-                }, 1500);
+                }, 2000);
             } else {
                 toast.error('Error al crear la cuenta');
             }
