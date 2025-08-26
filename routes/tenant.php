@@ -181,6 +181,12 @@ Route::middleware([
         // Rutas para productos
         Route::resource('products', ProductController::class, ['as' => 'tenant']);
 
+        // Rutas para proveedores
+        Route::resource('providers', \App\Http\Controllers\Tenant\ProviderController::class, ['as' => 'tenant']);
+
+        // Rutas para compras
+        Route::resource('purchases', \App\Http\Controllers\Tenant\PurchaseController::class, ['as' => 'tenant']);
+
         // Rutas para API Keys
         Route::resource('api-keys', ApiKeyController::class, ['only' => ['index', 'store', 'destroy']]); 
         Route::get('api-keys/docs', function () {

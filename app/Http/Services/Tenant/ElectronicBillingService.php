@@ -362,6 +362,17 @@ lVcfGrOz0dqyxWpioqO5A0nJgc8gWrGMa/6kdnclKUeQPQlSFiA=
      */
     public function generateInvoice(Sale $sale)
     {
+        // Temporary: if configured for Ecuador SRI, delegate to SRI service skeleton
+        try {
+            $settings = Settings::first();
+            if ($settings && !empty($settings->sri_mode)) {
+                $sri = new SriElectronicBillingService();
+                return $sri->generateInvoice($sale);
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Falling back to SUNAT flow: '.$e->getMessage());
+        }
+
         try {
             // Check if service is properly initialized
             if (!$this->isServiceInitialized()) {
