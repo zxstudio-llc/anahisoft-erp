@@ -14,16 +14,19 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
+use App\Http\Services\Tenant\AccountingService;
 
 class SaleController extends Controller
 {
     protected $electronicBillingService;
     protected $settings;
+    protected AccountingService $accountingService;
 
     public function __construct(ElectronicBillingService $electronicBillingService)
     {
         $this->electronicBillingService = $electronicBillingService;
         $this->settings = Settings::first();
+        $this->accountingService = new AccountingService();
     }
 
     /**
@@ -153,6 +156,13 @@ class SaleController extends Controller
             }
 
             DB::commit();
+
+            // Post accounting journal after commit
+            try {
+                $this->accountingService->postSale($sale);
+            } catch (\Exception $e) {
+                Log::warning('Failed to post sale journal entry: '.$e->getMessage());
+            }
 
             // Recargar la venta con sus relaciones
             $sale->load(['client', 'products']);
