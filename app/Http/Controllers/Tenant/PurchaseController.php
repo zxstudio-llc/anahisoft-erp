@@ -4,33 +4,6 @@ namespace App\Http\Controllers\Tenant;
 
 use App\Http\Controllers\Controller;
 use App\Models\Tenant\Purchase;
-<<<<<<< HEAD
-use App\Models\Tenant\Supplier;
-use App\Models\Tenant\Products;
-use App\Services\Tenant\PurchaseService;
-use App\Services\Tenant\AccountingService;
-use App\Http\Requests\StorePurchaseRequest;
-use Illuminate\Http\Request;
-use Inertia\Inertia;
-use DB;
-
-class PurchaseController extends Controller
-{
-    public function __construct(
-        private PurchaseService $purchaseService,
-        private AccountingService $accountingService
-    ) {}
-
-    public function index()
-    {
-        $purchases = Purchase::with(['supplier', 'company'])
-            ->where('company_id', auth()->user()->company_id)
-            ->orderBy('created_at', 'desc')
-            ->paginate(10);
-
-        return Inertia::render('Tenant/Purchases/Index', [
-            'purchases' => $purchases
-=======
 use App\Models\Tenant\PurchaseItem;
 use App\Models\Tenant\Provider;
 use App\Models\Tenant\Product;
@@ -53,39 +26,11 @@ class PurchaseController extends Controller
         $purchases = Purchase::with('provider')->latest()->paginate(10);
         return Inertia::render('Tenant/Purchases/Index', [
             'purchases' => $purchases,
->>>>>>> 36b421536fe0dbd5dc19fa8aa9cbdd4c97fb6f73
         ]);
     }
 
     public function create()
     {
-<<<<<<< HEAD
-        $suppliers = Supplier::where('company_id', auth()->user()->company_id)
-            ->where('active', true)
-            ->orderBy('business_name')
-            ->get();
-
-        $products = Products::where('company_id', auth()->user()->company_id)
-            ->where('active', true)
-            ->orderBy('name')
-            ->get();
-
-        return Inertia::render('Tenant/Purchases/Create', [
-            'suppliers' => $suppliers,
-            'products' => $products
-        ]);
-    }
-
-    public function store(StorePurchaseRequest $request)
-    {
-        DB::transaction(function () use ($request) {
-            $purchase = $this->purchaseService->create($request->validated());
-            $this->accountingService->createPurchaseJournalEntry($purchase);
-        });
-
-        return redirect()->route('purchases.index')
-            ->with('success', 'Purchase created successfully');
-=======
         return Inertia::render('Tenant/Purchases/Create', [
             'providers' => Provider::select('id', 'name')->orderBy('name')->get(),
             'products' => Product::select('id', 'name', 'price', 'stock')->where('is_active', true)->get(),
@@ -159,47 +104,18 @@ class PurchaseController extends Controller
 
             return redirect()->route('tenant.purchases.show', $purchase)->with('success', 'Purchase created');
         });
->>>>>>> 36b421536fe0dbd5dc19fa8aa9cbdd4c97fb6f73
     }
 
     public function show(Purchase $purchase)
     {
-<<<<<<< HEAD
-        $this->authorize('view', $purchase);
-        
-        return Inertia::render('Tenant/Purchases/Show', [
-            'purchase' => $purchase->load(['supplier', 'details.product', 'withholding'])
-=======
         $purchase->load(['provider', 'items.product']);
         return Inertia::render('Tenant/Purchases/Show', [
             'purchase' => $purchase,
->>>>>>> 36b421536fe0dbd5dc19fa8aa9cbdd4c97fb6f73
         ]);
     }
 
     public function edit(Purchase $purchase)
     {
-<<<<<<< HEAD
-        $this->authorize('update', $purchase);
-        
-        $suppliers = Supplier::where('company_id', auth()->user()->company_id)
-            ->where('active', true)
-            ->orderBy('business_name')
-            ->get();
-
-        $products = Products::where('company_id', auth()->user()->company_id)
-            ->where('active', true)
-            ->orderBy('name')
-            ->get();
-
-        return Inertia::render('Tenant/Purchases/Edit', [
-            'purchase' => $purchase->load(['supplier', 'details.product']),
-            'suppliers' => $suppliers,
-            'products' => $products
-        ]);
-    }
-}
-=======
         $purchase->load(['items']);
         return Inertia::render('Tenant/Purchases/Edit', [
             'purchase' => $purchase,
@@ -234,4 +150,3 @@ class PurchaseController extends Controller
         return redirect()->route('tenant.purchases.index')->with('success', 'Purchase deleted');
     }
 }
->>>>>>> 36b421536fe0dbd5dc19fa8aa9cbdd4c97fb6f73
