@@ -11,6 +11,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rules;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -74,36 +75,62 @@ class RegisteredUserController extends Controller
      */
     public function store(Request $request)
 {
-    $request->validate([
-        'name' => 'required|string|max:255',
-        'email' => 'required|string|email|max:255|unique:users',
-        'password' => ['required', 'confirmed', Rules\Password::defaults()],
-        'company_name' => 'required|string|max:255',
-        'ruc' => ['required', 'string', 'size:13', 'unique:tenants,data->ruc'],
-        'domain' => ['required', 'string', 'max:255', 'regex:/^[a-z0-9-]+$/'],
-        'plan_id' => 'required|exists:subscription_plans,id',
-        'billing_period' => 'required|in:monthly,yearly',
-    ]);
+    Log::info('=== INICIO DEL PROCESO DE REGISTRO ===');
+    Log::info('Datos recibidos:', $request->all());
+    
+    try {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255|unique:users',
+            'password' => ['required', 'confirmed', Rules\Password::defaults()],
+            'company_name' => 'required|string|max:255',
+            'ruc' => ['required', 'string', 'size:13', 'unique:tenants,data->ruc'],
+            'domain' => ['required', 'string', 'max:255', 'regex:/^[a-z0-9-]+$/'],
+            'plan_id' => 'required|exists:subscription_plans,id',
+            'billing_period' => 'required|in:monthly,yearly',
+        ]);
+        
+        Log::info('Validación de campos básicos completada');
+    } catch (\Illuminate\Validation\ValidationException $e) {
+        Log::error('Error en validación de campos:', ['errors' => $e->errors()]);
+        throw $e;
+    }
 
     // Validate payment fields if plan is paid
     $plan = SubscriptionPlan::find($request->plan_id);
+    Log::info('Plan encontrado:', ['plan' => $plan]);
+    
     if ($plan && $plan->price > 0) {
-        $request->validate([
-            'card_number' => 'required|string',
-            'card_expiry' => 'required|string',
-            'card_cvv' => 'required|string',
-        ]);
+        Log::info('Plan es de pago, validando campos de tarjeta');
+        try {
+            $request->validate([
+                'card_number' => 'required|string',
+                'card_expiry' => 'required|string',
+                'card_cvv' => 'required|string',
+            ]);
+            Log::info('Validación de campos de pago completada');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::error('Error en validación de campos de pago:', ['errors' => $e->errors()]);
+            throw $e;
+        }
+    } else {
+        Log::info('Plan es gratuito, no se requieren datos de pago');
     }
 
     try {
+        Log::info('=== INICIANDO PROCESAMIENTO ===');
+        
         // Process payment if plan is paid
         $paymentSuccessful = true;
         if ($plan && $plan->price > 0) {
+            Log::info('Procesando pago para plan de pago');
             // Payment processing logic would go here
             $paymentSuccessful = true; // Simulate successful payment for now
+            Log::info('Pago procesado exitosamente');
         }
 
         if (!$paymentSuccessful) {
+            Log::error('Error en el procesamiento del pago');
             return back()->withErrors([
                 'payment' => 'Error processing payment. Please try again.'
             ])->withInput();
@@ -112,6 +139,10 @@ class RegisteredUserController extends Controller
         // ✅ CORRECCION: Calcular fechas basadas en el plan
         $now = now();
         $isFreePlan = !$plan || $plan->price == 0;
+        Log::info('Calculando fechas de suscripción:', [
+            'isFreePlan' => $isFreePlan,
+            'billing_period' => $request->billing_period
+        ]);
         
         // Calcular fechas de suscripción
         if ($isFreePlan) {
@@ -124,9 +155,15 @@ class RegisteredUserController extends Controller
                 ? $now->copy()->addYear() 
                 : $now->copy()->addMonth();
         }
+        
+        Log::info('Fechas calculadas:', [
+            'trial_ends_at' => $trialEndsAt,
+            'subscription_ends_at' => $subscriptionEndsAt
+        ]);
 
         // ✅ CORRECCION: Crear el tenant con los campos correctos incluyendo RUC
-        $tenant = Tenant::create([
+        Log::info('=== CREANDO TENANT ===');
+        $tenantData = [
             'id' => $request->domain,
             // ✅ CAMPO CORRECTO: usar subscription_plan_id en lugar de plan_id
             'subscription_plan_id' => $request->plan_id,
@@ -150,60 +187,124 @@ class RegisteredUserController extends Controller
                 'trade_name' => $request->trade_name,
                 'registration_date' => $request->registration_date,
             ],
-        ]);
+        ];
+        
+        Log::info('Datos del tenant a crear:', $tenantData);
+        
+        try {
+            $tenant = Tenant::create($tenantData);
+            Log::info('Tenant creado exitosamente:', ['tenant_id' => $tenant->id]);
+        } catch (\Exception $e) {
+            Log::error('Error al crear tenant:', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            throw $e;
+        }
 
         // ✅ NUEVO: Crear el registro en la tabla subscriptions
-        $subscription = Subscription::create([
+        Log::info('=== CREANDO SUSCRIPCIÓN ===');
+        $subscriptionData = [
             'tenant_id' => $tenant->id,
             'name' => $plan ? $plan->name : 'Plan Gratuito',
             'stripe_id' => null, // Se asignará cuando se integre Stripe
             'stripe_status' => null, // Se asignará cuando se integre Stripe
             'stripe_price' => null, // Se asignará cuando se integre Stripe
+            'plan_type' => $isFreePlan ? 'basic' : 'standard', // Usar plan_type que existe en la tabla
             'quantity' => 1,
             'trial_ends_at' => $trialEndsAt,
             'ends_at' => $subscriptionEndsAt,
-            'created_at' => $now,
-            'updated_at' => $now,
-            'type' => $isFreePlan ? 'free' : 'paid', // O el campo que uses para identificar el tipo
+            'status' => 'active',
             'subscription_plan_id' => $request->plan_id,
-        ]);
+        ];
+        
+        Log::info('Datos de suscripción a crear:', $subscriptionData);
+        
+        try {
+            $subscription = Subscription::create($subscriptionData);
+            Log::info('Suscripción creada exitosamente:', ['subscription_id' => $subscription->id]);
+        } catch (\Exception $e) {
+            Log::error('Error al crear suscripción:', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            throw $e;
+        }
 
         // Create domain for the tenant
-        $domain = $tenant->domains()->create([
-            'domain' => $request->domain . '.' . config('tenancy.central_domains')[0]
-        ]);
+        Log::info('=== CREANDO DOMINIO ===');
+        $domainName = $request->domain . '.' . config('tenancy.central_domains')[0];
+        Log::info('Creando dominio:', ['domain' => $domainName]);
+        
+        try {
+            $domain = $tenant->domains()->create([
+                'domain' => $domainName
+            ]);
+            Log::info('Dominio creado exitosamente:', ['domain_id' => $domain->id, 'domain' => $domain->domain]);
+        } catch (\Exception $e) {
+            Log::error('Error al crear dominio:', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            throw $e;
+        }
 
         // Initialize tenant data
-        $tenant->run(function () use ($request) {
-            DB::transaction(function () use ($request) {
-                // Create admin user
-                $user = User::create([
-                    'name' => $request->name,
-                    'email' => $request->email,
-                    'password' => Hash::make($request->password),
-                ]);
+        Log::info('=== INICIALIZANDO DATOS DEL TENANT ===');
+        
+        try {
+            $tenant->run(function () use ($request) {
+                Log::info('Ejecutando inicialización dentro del contexto del tenant');
+                
+                DB::transaction(function () use ($request) {
+                    Log::info('Iniciando transacción para crear usuario admin');
+                    
+                    // Create admin user
+                    $userData = [
+                        'name' => $request->name,
+                        'email' => $request->email,
+                        'password' => Hash::make($request->password),
+                    ];
+                    
+                    Log::info('Creando usuario admin:', ['name' => $userData['name'], 'email' => $userData['email']]);
+                    
+                    $user = User::create($userData);
+                    Log::info('Usuario admin creado exitosamente:', ['user_id' => $user->id]);
 
-                // Assign admin role
-                $adminRole = Role::create(['name' => 'admin']);
-                $user->assignRole($adminRole);
+                    // Assign admin role
+                    Log::info('Creando rol de administrador');
+                    $adminRole = Role::create(['name' => 'admin']);
+                    Log::info('Rol admin creado, asignando al usuario');
+                    $user->assignRole($adminRole);
 
-                // Create permissions and assign to admin role
-                $permissions = [
-                    'view-dashboard',
-                    'manage-users',
-                    'manage-roles',
-                    'manage-settings',
-                ];
+                    // Create permissions and assign to admin role
+                    $permissions = [
+                        'view-dashboard',
+                        'manage-users',
+                        'manage-roles',
+                        'manage-settings',
+                    ];
 
-                foreach ($permissions as $permission) {
-                    Permission::create(['name' => $permission]);
-                }
-                $adminRole->givePermissionTo($permissions);
+                    Log::info('Creando permisos:', $permissions);
+                    foreach ($permissions as $permission) {
+                        Permission::create(['name' => $permission]);
+                    }
+                    $adminRole->givePermissionTo($permissions);
+                    Log::info('Permisos asignados al rol admin');
 
-                // Store user ID in session for login
-                session(['tenant_user_id' => $user->id]);
+                    // Store user ID in session for login
+                    session(['tenant_user_id' => $user->id]);
+                    Log::info('ID de usuario guardado en sesión para login automático');
+                });
             });
-        });
+            Log::info('Inicialización del tenant completada exitosamente');
+        } catch (\Exception $e) {
+            Log::error('Error en la inicialización del tenant:', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            throw $e;
+        }
 
         // ✅ OPCION 1: Redirigir al dashboard del tenant
         $dashboardUrl = "https://{$domain->domain}/dashboard";
@@ -214,9 +315,12 @@ class RegisteredUserController extends Controller
         // Usar la URL de login para que el usuario pueda autenticarse en su tenant
         $redirectUrl = $loginUrl;
         
+        Log::info('=== PREPARANDO RESPUESTA ===');
+        Log::info('URL de redirección:', ['redirect_url' => $redirectUrl]);
+        
         // Si es una petición AJAX (Inertia), retornar JSON
         if ($request->wantsJson() || $request->header('X-Inertia')) {
-            return response()->json([
+            $responseData = [
                 'success' => true,
                 'redirect' => $redirectUrl,
                 'message' => 'Cuenta creada exitosamente',
@@ -236,16 +340,42 @@ class RegisteredUserController extends Controller
                     'ends_at' => $subscription->ends_at,
                     'subscription_plan_id' => $subscription->subscription_plan_id,
                 ]
-            ]);
+            ];
+            
+            Log::info('Retornando respuesta JSON:', $responseData);
+            return response()->json($responseData);
         }
         
         // Para peticiones normales, usar redirect()->away()
+        Log::info('Redirigiendo a:', ['url' => $redirectUrl]);
         return redirect()->away($redirectUrl);
 
     } catch (\Exception $e) {
+        Log::error('=== ERROR GENERAL EN EL REGISTRO ===');
+        Log::error('Error:', [
+            'message' => $e->getMessage(),
+            'file' => $e->getFile(),
+            'line' => $e->getLine(),
+            'trace' => $e->getTraceAsString()
+        ]);
+        
         // Clean up if error occurs
         if (isset($tenant)) {
-            $tenant->delete();
+            Log::info('Limpiando tenant creado debido al error');
+            try {
+                $tenant->delete();
+                Log::info('Tenant eliminado exitosamente');
+            } catch (\Exception $deleteError) {
+                Log::error('Error al eliminar tenant:', ['error' => $deleteError->getMessage()]);
+            }
+        }
+
+        if ($request->wantsJson() || $request->header('X-Inertia')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al crear la cuenta: ' . $e->getMessage(),
+                'errors' => ['error' => 'Error creating tenant: ' . $e->getMessage()]
+            ], 422);
         }
 
         return back()->withErrors([
