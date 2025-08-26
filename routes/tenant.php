@@ -10,6 +10,18 @@ use App\Http\Controllers\Tenant\ProductController;
 use App\Http\Controllers\Tenant\RoleController;
 use App\Http\Controllers\Tenant\SaleController;
 use App\Http\Controllers\Tenant\UserController;
+
+use App\Http\Controllers\Tenant\CustomersController;
+use App\Http\Controllers\Tenant\SupplierController;
+use App\Http\Controllers\Tenant\ProductsController;
+use App\Http\Controllers\Tenant\InvoicesController;
+use App\Http\Controllers\Tenant\PurchaseController;
+use App\Http\Controllers\Tenant\JournalEntryController;
+use App\Http\Controllers\Tenant\CompaniesController;
+use App\Http\Controllers\Tenant\WithholdingsController;
+use App\Http\Controllers\Tenant\SriDocumentsController;
+use App\Http\Controllers\Tenant\ChartOfAccountsController;
+
 use App\Http\Controllers\Tenant\SubscriptionController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -223,7 +235,7 @@ Route::middleware([
         // })->name('subscription.expired')->withoutMiddleware(['auth', 'verified']);
 
         // Rutas para facturación
-        Route::prefix('invoices')->name('tenant.invoices.')->group(function () {
+        Route::prefix('invoices')->name('tenant.invoice.')->group(function () {
             Route::get('/', [InvoiceController::class, 'index'])->name('index');
             Route::get('/create', [InvoiceController::class, 'create'])->name('create');
             Route::post('/', [InvoiceController::class, 'store'])->name('store');
@@ -247,6 +259,32 @@ Route::middleware([
         Route::get('settings/appearance', function () {
             return Inertia::render('settings/appearance');
         })->name('settings.appearance');
+
+
+        // pruebas endpoint
+        Route::resource('customers', CustomersController::class);
+        Route::resource('chart-of-accounts', ChartOfAccountsController::class);
+        
+        Route::resource('suppliers', SupplierController::class);
+        Route::resource('products', ProductsController::class);
+
+        Route::get('invoices/{invoice}/authorize', [InvoicesController::class, 'authorize'])->name('invoices.authorize');
+        Route::resource('invoices', InvoicesController::class)->except(['destroy']);
+
+        Route::resource('purchases', PurchaseController::class)->except(['destroy']);
+
+        Route::post('journal-entries/{journalEntry}/post', [JournalEntryController::class, 'post'])->name('journal-entries.post');
+        Route::resource('journal-entries', JournalEntryController::class)->except(['destroy']);
+
+        Route::resource('companies', CompaniesController::class)->only(['index','edit','update','show']);
+
+        Route::resource('withholdings', WithholdingsController::class)->only(['index','create','store','show']);
+
+        Route::get('sri-docs', [SriDocumentsController::class, 'index'])->name('sri-docs.index');
+        Route::get('sri-docs/{sriDocument}', [SriDocumentsController::class, 'show'])->name('sri-docs.show');
+        Route::post('sri-docs/{sriDocument}/resend', [SriDocumentsController::class, 'resend'])->name('sri-docs.resend');
+        Route::get('sri-docs/{sriDocument}/xml', [SriDocumentsController::class, 'downloadXml'])->name('sri-docs.xml');
+        Route::get('sri-docs/{sriDocument}/ride', [SriDocumentsController::class, 'downloadRide'])->name('sri-docs.ride');
 
         // require __DIR__ . '/settings.php';
     });

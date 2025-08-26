@@ -141,11 +141,11 @@ export const tenantNavItems: NavItem[] = [
         href: '#',
         icon: Banknote,
         subItems: [
-            {
-                title: 'Facturación',
-                href: route('tenant.invoices.index'),
-                icon: Receipt,
-            },
+            // {
+            //     title: 'Facturación',
+            //     href: route('tenant.invoices.index'),
+            //     icon: Receipt,
+            // },
             {
                 title: 'Plan de cuentas', href: '/finanzas/chart-of-accounts',
                 icon: FileText,
@@ -183,6 +183,11 @@ export const tenantNavItems: NavItem[] = [
                 icon: Users,
             },
             {
+                title: 'ClientesNuevos',
+                href: route('customers.index'),
+                icon: Users,
+            },
+            {
                 title: 'Ventas',
                 href: route('tenant.sales.index'),
                 icon: ShoppingCart,
@@ -203,11 +208,11 @@ export const tenantNavItems: NavItem[] = [
         href: '#',
         icon: Boxes,
         subItems: [
-            {
-                title: 'Productos',
-                href: route('tenant.products.index'),
-                icon: Package,
-            },
+            // {
+            //     title: 'Productos',
+            //     href: route('tenant.products.index'),
+            //     icon: Package,
+            // },
             {
                 title: 'Categorías',
                 href: route('tenant.categories.index'),

@@ -4,8 +4,8 @@ namespace App\Http\Controllers\Tenant;
 
 use App\Http\Controllers\Controller;
 use App\Models\Tenant\Client;
-use App\Models\Tenant\Product;
-use App\Models\Tenant\Invoice;
+use App\Models\Tenant\Products;
+use App\Models\Tenant\Invoices;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -28,10 +28,10 @@ class DashboardController extends Controller
         $sixMonthsAgo = $now->copy()->subMonths(6)->startOfMonth();
 
         // Calcular ventas del mes actual y anterior
-        $currentMonthSales = Invoice::whereBetween('date', [$startOfMonth, $endOfMonth])
+        $currentMonthSales = Invoices::whereBetween('issue_date', [$startOfMonth, $endOfMonth])
             ->where('status', 'paid')
             ->sum('total');
-        $lastMonthSales = Invoice::whereBetween('date', [$startOfLastMonth, $endOfLastMonth])
+        $lastMonthSales = Invoices::whereBetween('issue_date', [$startOfLastMonth, $endOfLastMonth])
             ->where('status', 'paid')
             ->sum('total');
         
@@ -51,9 +51,9 @@ class DashboardController extends Controller
             : 100;
 
         // Obtener estadísticas de productos
-        $totalProducts = Product::count();
-        $newProducts = Product::where('created_at', '>=', $startOfMonth)->count();
-        $lastMonthProducts = Product::where('created_at', '>=', $startOfLastMonth)
+        $totalProducts = Products::count();
+        $newProducts = Products::where('created_at', '>=', $startOfMonth)->count();
+        $lastMonthProducts = Products::where('created_at', '>=', $startOfLastMonth)
             ->where('created_at', '<', $startOfMonth)
             ->count();
         $productsChange = $lastMonthProducts > 0 
@@ -61,21 +61,21 @@ class DashboardController extends Controller
             : 100;
 
         // Obtener estadísticas de facturas
-        $totalInvoices = Invoice::count();
-        $pendingInvoices = Invoice::where('status', 'pending')->count();
-        $paidInvoices = Invoice::where('status', 'paid')->count();
-        $currentMonthInvoices = Invoice::whereBetween('date', [$startOfMonth, $endOfMonth])->count();
-        $lastMonthInvoices = Invoice::whereBetween('date', [$startOfLastMonth, $endOfLastMonth])->count();
+        $totalInvoices = Invoices::count();
+        $pendingInvoices = Invoices::where('status', 'pending')->count();
+        $paidInvoices = Invoices::where('status', 'paid')->count();
+        $currentMonthInvoices = Invoices::whereBetween('issue_date', [$startOfMonth, $endOfMonth])->count();
+        $lastMonthInvoices = Invoices::whereBetween('issue_date', [$startOfLastMonth, $endOfLastMonth])->count();
         $invoicesChange = $lastMonthInvoices > 0 
             ? (($currentMonthInvoices - $lastMonthInvoices) / $lastMonthInvoices) * 100 
             : 100;
 
         // Obtener datos para el gráfico de ventas por mes
-        $salesByMonth = Invoice::where('date', '>=', $sixMonthsAgo)
+        $salesByMonth = Invoices::where('issue_date', '>=', $sixMonthsAgo)
             ->where('status', 'paid')
             ->select(
-                DB::raw('to_char(date, \'Mon\') as month'),
-                DB::raw('to_char(date, \'YYYY-MM\') as month_order'),
+                DB::raw('to_char(issue_date, \'Mon\') as month'),
+                DB::raw('to_char(issue_date, \'YYYY-MM\') as month_order'),
                 DB::raw('SUM(total) as total')
             )
             ->groupBy('month', 'month_order')
@@ -89,7 +89,7 @@ class DashboardController extends Controller
             });
 
         // Obtener datos para el gráfico de facturas por estado
-        $invoicesByStatus = Invoice::select('status', DB::raw('count(*) as total'))
+        $invoicesByStatus = Invoices::select('status', DB::raw('count(*) as total'))
             ->groupBy('status')
             ->get()
             ->map(function ($item) {
@@ -100,8 +100,8 @@ class DashboardController extends Controller
             });
 
         // Obtener actividad reciente
-        $recentInvoices = Invoice::with('client')
-            ->orderBy('date', 'desc')
+        $recentInvoices = Invoices::with('client')
+            ->orderBy('issue_date', 'desc')
             ->take(5)
             ->get()
             ->map(function ($invoice) {
@@ -110,7 +110,7 @@ class DashboardController extends Controller
                     'client_name' => $invoice->client->name,
                     'total' => $invoice->total,
                     'status' => $invoice->status,
-                    'date' => $invoice->date
+                    'issue_date' => $invoice->issue_date
                 ];
             });
 
@@ -126,7 +126,7 @@ class DashboardController extends Controller
                 ];
             });
 
-        $recentProducts = Product::orderBy('created_at', 'desc')
+        $recentProducts = Products::orderBy('created_at', 'desc')
             ->take(5)
             ->get()
             ->map(function ($product) {
