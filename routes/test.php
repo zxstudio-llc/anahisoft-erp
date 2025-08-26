@@ -122,13 +122,35 @@ Route::post('/test-registration-process', function (Request $request) {
         $existingTenant = Tenant::whereJsonContains('data->ruc', $data['ruc'])->first();
         if ($existingTenant) {
             Log::info('Eliminando tenant existente para test:', ['tenant_id' => $existingTenant->id]);
+            // Eliminar dominios asociados primero
+            $existingTenant->domains()->delete();
+            // Eliminar suscripciones asociadas
+            Subscription::where('tenant_id', $existingTenant->id)->delete();
+            // Eliminar el tenant
             $existingTenant->delete();
+        }
+        
+        // Limpiar por dominio también
+        $existingByDomain = Tenant::where('id', $data['domain'])->first();
+        if ($existingByDomain) {
+            Log::info('Eliminando tenant existente por dominio:', ['tenant_id' => $existingByDomain->id]);
+            $existingByDomain->domains()->delete();
+            Subscription::where('tenant_id', $existingByDomain->id)->delete();
+            $existingByDomain->delete();
         }
         
         $existingUser = User::where('email', $data['email'])->first();
         if ($existingUser) {
             Log::info('Eliminando usuario existente para test');
             $existingUser->delete();
+        }
+        
+        // Limpiar dominios huérfanos
+        $domainName = $data['domain'] . '.facturacion.test';
+        $existingDomain = \Stancl\Tenancy\Database\Models\Domain::where('domain', $domainName)->first();
+        if ($existingDomain) {
+            Log::info('Eliminando dominio huérfano:', ['domain' => $domainName]);
+            $existingDomain->delete();
         }
         
         // 3. Crear tenant

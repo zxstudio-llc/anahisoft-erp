@@ -20,12 +20,17 @@ return new class extends Migration
             $table->string('vat_rate', 2)->default('2'); // 0=0%, 2=12%, 3=14%, 6=No subject, 7=Exempt
             $table->string('ice_rate', 2)->nullable(); // Special tax rate
             $table->string('irbpnr_rate', 2)->nullable(); // Tax on plastic bottles
+            $table->boolean('has_igv')->default(true); // Campo que la migración de categorías espera
+            $table->unsignedBigInteger('category_id')->nullable(); // Campo de categoría
             $table->integer('stock')->default(0);
             $table->integer('min_stock')->default(0);
             $table->boolean('track_inventory')->default(true);
             $table->boolean('active')->default(true);
             $table->timestamps();
             $table->softDeletes();
+            
+            // Agregar índice para category_id
+            $table->index('category_id');
         });
     }
 
