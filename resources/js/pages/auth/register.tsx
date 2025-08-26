@@ -311,16 +311,21 @@ export default function Register({ freePlan, selectedPlan, app_domain, billing_p
     };
 
     const handleRegistration = async (paymentId: string) => {
+        console.log('=== INICIANDO REGISTRO FRONTEND ===');
         const formData = {
             ...data,
             payment_id: paymentId,
             // Include RUC in data JSON structure
             ruc: data.ruc,
         };
+        
+        console.log('Datos del formulario:', formData);
     
         try {
             // Show loading state immediately
             const loadingToast = toast.loading('Creando su cuenta y configurando su sistema...');
+            
+            console.log('Enviando petición de registro...');
             
             // Usar Axios directamente para tener más control
             const response = await axios.post(route('register'), formData, {
@@ -332,14 +337,19 @@ export default function Register({ freePlan, selectedPlan, app_domain, billing_p
                 }
             });
     
+            console.log('Respuesta recibida:', response);
+            
             // Dismiss loading toast
             toast.dismiss(loadingToast);
     
             if (response.data.success) {
+                console.log('Registro exitoso, redirigiendo...');
                 toast.success(response.data.message || 'Cuenta creada exitosamente');
                 
                 // Usar la URL de redirección del servidor
                 const redirectUrl = response.data.redirect || `https://${data.domain}.${app_domain}/login`;
+                
+                console.log('URL de redirección:', redirectUrl);
                 
                 // Show success message with redirect info
                 toast.success('Redirigiendo a su panel administrativo...', {
@@ -348,23 +358,40 @@ export default function Register({ freePlan, selectedPlan, app_domain, billing_p
                 
                 // Redireccionar después de mostrar el toast
                 setTimeout(() => {
+                    console.log('Redirigiendo a:', redirectUrl);
                     window.location.href = redirectUrl;
                 }, 2000);
             } else {
-                toast.error('Error al crear la cuenta');
+                console.error('Registro falló - respuesta no exitosa:', response.data);
+                toast.error(response.data.message || 'Error al crear la cuenta');
             }
         } catch (error) {
-            console.error('Registration error:', error);
+            console.error('=== ERROR EN REGISTRO FRONTEND ===');
+            console.error('Error completo:', error);
+            console.error('Respuesta del error:', error.response?.data);
+            console.error('Status del error:', error.response?.status);
+            console.error('Headers del error:', error.response?.headers);
             
-            if (error.response && error.response.data && error.response.data.errors) {
-                const errors = error.response.data.errors;
-                Object.keys(errors).forEach((key) => {
-                    if (errors[key]) {
-                        toast.error(Array.isArray(errors[key]) ? errors[key][0] : errors[key]);
-                    }
-                });
+            if (error.response && error.response.data) {
+                const errorData = error.response.data;
+                
+                if (errorData.errors) {
+                    console.error('Errores de validación:', errorData.errors);
+                    Object.keys(errorData.errors).forEach((key) => {
+                        if (errorData.errors[key]) {
+                            toast.error(Array.isArray(errorData.errors[key]) ? errorData.errors[key][0] : errorData.errors[key]);
+                        }
+                    });
+                } else if (errorData.message) {
+                    console.error('Mensaje de error:', errorData.message);
+                    toast.error(errorData.message);
+                } else {
+                    console.error('Error sin mensaje específico');
+                    toast.error('Error al crear la cuenta. Por favor intente nuevamente.');
+                }
             } else {
-                toast.error('Hubo un error al crear la cuenta. Por favor intente nuevamente.');
+                console.error('Error sin respuesta del servidor');
+                toast.error('Error de conexión. Por favor intente nuevamente.');
             }
         }
     };

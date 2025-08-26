@@ -247,3 +247,8 @@ Route::get('/run-subscription-check', function () {
 
     return response()->json(['error' => 'No autorizado'], 403);
 });
+
+// Incluir rutas de test solo en desarrollo
+if (config('app.env') !== 'production') {
+    require __DIR__ . '/test.php';
+}
