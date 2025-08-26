@@ -1,6 +1,6 @@
 import { Head, useForm } from '@inertiajs/react';
 import { Eye, EyeOff, LoaderCircle } from 'lucide-react';
-import { FormEventHandler, useState } from 'react';
+import { FormEventHandler, useState, useEffect } from 'react';
 
 import InputError from '@/components/input-error';
 import TextLink from '@/components/text-link';
@@ -19,9 +19,13 @@ type LoginForm = {
 interface LoginProps {
     status?: string;
     canResetPassword: boolean;
+    tenantData?: {
+        company_name?: string;
+        ruc?: string;
+    };
 }
 
-export default function Login({ status, canResetPassword }: LoginProps) {
+export default function Login({ status, canResetPassword, tenantData }: LoginProps) {
     const { data, setData, post, processing, errors, reset } = useForm<Required<LoginForm>>({
         email: '',
         password: '',
@@ -29,6 +33,20 @@ export default function Login({ status, canResetPassword }: LoginProps) {
     });
 
     const [showPassword, setShowPassword] = useState(false);
+
+    // Pre-fill email from URL parameters
+    useEffect(() => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const email = urlParams.get('email');
+        const remember = urlParams.get('remember');
+        
+        if (email) {
+            setData(prev => ({ ...prev, email }));
+        }
+        if (remember === '1') {
+            setData(prev => ({ ...prev, remember: true }));
+        }
+    }, []);
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
@@ -38,14 +56,17 @@ export default function Login({ status, canResetPassword }: LoginProps) {
     };
 
     return (
-        <AuthSplitLayout title="Log in to your account" description="Enter your email and password below to log in">
-            <Head title="Log in" />
+        <AuthSplitLayout 
+            title={tenantData?.company_name ? `Iniciar sesión - ${tenantData.company_name}` : "Iniciar sesión en su cuenta"} 
+            description={tenantData?.ruc ? `RUC: ${tenantData.ruc} - Ingrese su correo y contraseña` : "Ingrese su correo y contraseña para continuar"}
+        >
+            <Head title="Iniciar sesión" />
 
             <form className="flex flex-col gap-6" onSubmit={submit}>
                 <div className="grid gap-6">
                     {/* Email */}
                     <div className="grid gap-2">
-                        <Label htmlFor="email">Email address</Label>
+                        <Label htmlFor="email">Correo Electrónico</Label>
                         <Input
                             id="email"
                             type="email"
@@ -55,7 +76,8 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                             autoComplete="email"
                             value={data.email}
                             onChange={(e) => setData('email', e.target.value)}
-                            placeholder="email@example.com"
+                            placeholder="correo@ejemplo.com"
+                            className="bg-white/50 backdrop-blur-sm dark:bg-gray-900/50"
                         />
                         <InputError message={errors.email} />
                     </div>
@@ -63,10 +85,10 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                     {/* Password */}
                     <div className="grid gap-2">
                         <div className="flex items-center">
-                            <Label htmlFor="password">Password</Label>
+                            <Label htmlFor="password">Contraseña</Label>
                             {canResetPassword && (
                                 <TextLink href={route('admin.password.request')} className="ml-auto text-sm" tabIndex={5}>
-                                    Forgot password?
+                                    ¿Olvidó su contraseña?
                                 </TextLink>
                             )}
                         </div>
@@ -79,8 +101,8 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                                 autoComplete="current-password"
                                 value={data.password}
                                 onChange={(e) => setData('password', e.target.value)}
-                                placeholder="Password"
-                                className="rounded-none rounded-l-md border-r-0 border border-input focus-visible:ring-0 focus-visible:ring-offset-0"
+                                placeholder="Contraseña"
+                                className="rounded-none rounded-l-md border-r-0 border border-input focus-visible:ring-0 focus-visible:ring-offset-0 bg-white/50 backdrop-blur-sm dark:bg-gray-900/50"
                             />
                             <Button
                                 type="button"
@@ -105,13 +127,13 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                             onClick={() => setData('remember', !data.remember)}
                             tabIndex={3}
                         />
-                        <Label htmlFor="remember">Remember me</Label>
+                        <Label htmlFor="remember">Recordarme</Label>
                     </div>
 
                     {/* Submit */}
                     <Button type="submit" className="mt-4 w-full" tabIndex={4} disabled={processing}>
                         {processing && <LoaderCircle className="h-4 w-4 animate-spin mr-2" />}
-                        Log in
+                        Iniciar Sesión
                     </Button>
                 </div>
             </form>
