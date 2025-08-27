@@ -26,11 +26,20 @@ class LoginRequest extends FormRequest
      */
     public function rules(): array
     {
-        return [
+        // Check if we're in a tenant context
+        $isTenant = app()->bound('tenancy.tenant');
+        
+        $rules = [
             'email' => ['required', 'string', 'email'],
             'password' => ['required', 'string'],
-            'ruc' => ['required', 'string', 'size:13'],
         ];
+        
+        // Only require RUC if we're NOT in a tenant context (i.e., central domain)
+        if (!$isTenant) {
+            $rules['ruc'] = ['required', 'string', 'size:13'];
+        }
+        
+        return $rules;
     }
 
     /**

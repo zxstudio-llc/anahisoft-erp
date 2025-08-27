@@ -10,75 +10,68 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AuthLayout from '@/layouts/auth/auth-split-layout';
 
-type LoginForm = {
+type AdminLoginForm = {
     email: string;
     password: string;
-    ruc: string;
     remember: boolean;
 };
 
-interface LoginProps {
+interface AdminLoginProps {
     status?: string;
     canResetPassword: boolean;
 }
 
-export default function Login({ status, canResetPassword }: LoginProps) {
-    const { data, setData, post, processing, errors, reset } = useForm<Required<LoginForm>>({
+export default function AdminLogin({ status, canResetPassword }: AdminLoginProps) {
+    const { data, setData, post, processing, errors, reset } = useForm<Required<AdminLoginForm>>({
         email: '',
         password: '',
-        ruc: '',
         remember: false,
     });
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
-        post(route('login'), {
+        post(route('admin.login.store'), {
             onFinish: () => reset('password'),
         });
     };
 
     return (
-        <AuthLayout title="Iniciar sesión en su cuenta" description="Ingrese el RUC de su empresa, su correo y contraseña para iniciar sesión" backgroundImage="/images/ANAHISOFT-02.jpg">
-            <Head title="Log in" />
+        <AuthLayout 
+            title="Panel de Administración" 
+            description="Acceso exclusivo para administradores del sistema"
+            backgroundImage="/images/ANAHISOFT-02.jpg"
+        >
+            <Head title="Admin Login" />
+
+            <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg dark:bg-blue-900/20 dark:border-blue-800">
+                <div className="flex items-center">
+                    <div className="flex-shrink-0">
+                        <svg className="w-5 h-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                        </svg>
+                    </div>
+                    <div className="ml-3">
+                        <p className="text-sm text-blue-700 dark:text-blue-300">
+                            <strong>Panel de Superadministrador:</strong> Este acceso es exclusivo para administradores del sistema.
+                        </p>
+                    </div>
+                </div>
+            </div>
 
             <form className="flex flex-col gap-6" onSubmit={submit}>
                 <div className="grid gap-6">
-                    <div className="grid gap-2">
-                        <Label htmlFor="ruc">RUC de la Empresa</Label>
-                        <Input
-                            id="ruc"
-                            type="text"
-                            required
-                            autoFocus
-                            tabIndex={1}
-                            value={data.ruc}
-                            onChange={(e) => {
-                                const value = e.target.value.replace(/[^0-9]/g, '').slice(0, 13);
-                                setData('ruc', value);
-                            }}
-                            placeholder="Ingrese el RUC de su empresa (13 dígitos)"
-                            maxLength={13}
-                            pattern="[0-9]*"
-                            inputMode="numeric"
-                            className="bg-white/50 backdrop-blur-sm dark:bg-gray-900/50"
-                        />
-                        <InputError message={errors.ruc} />
-                        <p className="text-xs text-muted-foreground">
-                            Ingrese el RUC de su empresa para acceder al panel administrativo correspondiente.
-                        </p>
-                    </div>
-
                     <div className="grid gap-2">
                         <Label htmlFor="email">Correo Electrónico</Label>
                         <Input
                             id="email"
                             type="email"
                             required
-                            tabIndex={2}
+                            autoFocus
+                            tabIndex={1}
                             autoComplete="email"
                             value={data.email}
                             onChange={(e) => setData('email', e.target.value)}
-                            placeholder="correo@ejemplo.com"
+                            placeholder="admin@ejemplo.com"
                             className="bg-white/50 backdrop-blur-sm dark:bg-gray-900/50"
                         />
                         <InputError message={errors.email} />
@@ -88,7 +81,7 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                         <div className="flex items-center">
                             <Label htmlFor="password">Contraseña</Label>
                             {canResetPassword && (
-                                <TextLink href={route('password.request')} className="ml-auto text-sm" tabIndex={6}>
+                                <TextLink href={route('password.request')} className="ml-auto text-sm" tabIndex={5}>
                                     ¿Olvidó su contraseña?
                                 </TextLink>
                             )}
@@ -97,11 +90,11 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                             id="password"
                             type="password"
                             required
-                            tabIndex={3}
+                            tabIndex={2}
                             autoComplete="current-password"
                             value={data.password}
                             onChange={(e) => setData('password', e.target.value)}
-                            placeholder="Contraseña"
+                            placeholder="Contraseña de administrador"
                             className="bg-white/50 backdrop-blur-sm dark:bg-gray-900/50"
                         />
                         <InputError message={errors.password} />
@@ -113,29 +106,21 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                             name="remember"
                             checked={data.remember}
                             onClick={() => setData('remember', !data.remember)}
-                            tabIndex={4}
+                            tabIndex={3}
                         />
                         <Label htmlFor="remember">Recordarme</Label>
                     </div>
 
-                    <Button type="submit" className="mt-4 w-full" tabIndex={5} disabled={processing}>
-                        {processing && <LoaderCircle className="h-4 w-4 animate-spin" />}
-                        Iniciar Sesión
+                    <Button type="submit" className="mt-4 w-full" tabIndex={4} disabled={processing}>
+                        {processing && <LoaderCircle className="h-4 w-4 animate-spin mr-2" />}
+                        Iniciar Sesión como Administrador
                     </Button>
                 </div>
 
-                <div className="text-center text-sm text-muted-foreground space-y-2">
-                    <div>
-                        ¿No tiene una cuenta?{' '}
-                        <TextLink href={route('register')} tabIndex={7}>
-                            Registrarse
-                        </TextLink>
-                    </div>
-                    <div>
-                        <TextLink href={route('admin.login')} tabIndex={8} className="text-xs">
-                            Acceso para administradores →
-                        </TextLink>
-                    </div>
+                <div className="text-center text-sm text-muted-foreground">
+                    <TextLink href={route('login')} tabIndex={6}>
+                        ← Volver al login principal
+                    </TextLink>
                 </div>
             </form>
 

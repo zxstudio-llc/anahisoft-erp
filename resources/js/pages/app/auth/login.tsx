@@ -87,7 +87,7 @@ export default function Login({ status, canResetPassword, tenantData }: LoginPro
                         <div className="flex items-center">
                             <Label htmlFor="password">Contraseña</Label>
                             {canResetPassword && (
-                                <TextLink href={route('admin.password.request')} className="ml-auto text-sm" tabIndex={5}>
+                                <TextLink href={route('password.request')} className="ml-auto text-sm" tabIndex={5}>
                                     ¿Olvidó su contraseña?
                                 </TextLink>
                             )}
