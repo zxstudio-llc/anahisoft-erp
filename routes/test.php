@@ -106,31 +106,27 @@ Route::get('/test-registration', function () {
 
 Route::post('/test-registration-process', function (Request $request) {
     Log::info('=== INICIANDO TEST DE REGISTRO ===');
-    
+
     try {
         $data = $request->all();
         Log::info('Datos recibidos para test:', $data);
-        
+
         // 1. Verificar plan
         $plan = SubscriptionPlan::find($data['plan_id']);
         if (!$plan) {
-            throw new Exception('Plan no encontrado');
+            throw new \Exception('Plan no encontrado');
         }
         Log::info('Plan verificado:', ['plan' => $plan->toArray()]);
-        
+
         // 2. Limpiar datos existentes para test
         $existingTenant = Tenant::whereJsonContains('data->ruc', $data['ruc'])->first();
         if ($existingTenant) {
             Log::info('Eliminando tenant existente para test:', ['tenant_id' => $existingTenant->id]);
-            // Eliminar dominios asociados primero
             $existingTenant->domains()->delete();
-            // Eliminar suscripciones asociadas
             Subscription::where('tenant_id', $existingTenant->id)->delete();
-            // Eliminar el tenant
             $existingTenant->delete();
         }
-        
-        // Limpiar por dominio también
+
         $existingByDomain = Tenant::where('id', $data['domain'])->first();
         if ($existingByDomain) {
             Log::info('Eliminando tenant existente por dominio:', ['tenant_id' => $existingByDomain->id]);
@@ -138,13 +134,13 @@ Route::post('/test-registration-process', function (Request $request) {
             Subscription::where('tenant_id', $existingByDomain->id)->delete();
             $existingByDomain->delete();
         }
-        
+
         $existingUser = User::where('email', $data['email'])->first();
         if ($existingUser) {
             Log::info('Eliminando usuario existente para test');
             $existingUser->delete();
         }
-        
+
         // Limpiar dominios huérfanos
         $domainName = $data['domain'] . '.facturacion.test';
         $existingDomain = \Stancl\Tenancy\Database\Models\Domain::where('domain', $domainName)->first();
@@ -152,18 +148,18 @@ Route::post('/test-registration-process', function (Request $request) {
             Log::info('Eliminando dominio huérfano:', ['domain' => $domainName]);
             $existingDomain->delete();
         }
-        
+
         // 3. Crear tenant
         $now = now();
         $isFreePlan = !$plan || $plan->price == 0;
-        
+
         if ($isFreePlan) {
             $trialEndsAt = $now->copy()->addDays(5)->endOfDay();
             $subscriptionEndsAt = $trialEndsAt->copy()->addDays(30)->endOfDay();
         } else {
             $trialEndsAt = null;
-            $subscriptionEndsAt = $data['billing_period'] === 'yearly' 
-                ? $now->copy()->addYear() 
+            $subscriptionEndsAt = $data['billing_period'] === 'yearly'
+                ? $now->copy()->addYear()
                 : $now->copy()->addMonth();
         }
 
@@ -185,7 +181,6 @@ Route::post('/test-registration-process', function (Request $request) {
 
         Log::info('Creando tenant con datos:', $tenantData);
         $tenant = Tenant::create($tenantData);
-        Log::info('Tenant creado exitosamente:', ['tenant_id' => $tenant->id]);
 
         // 4. Crear suscripción
         $subscriptionData = [
@@ -198,30 +193,19 @@ Route::post('/test-registration-process', function (Request $request) {
             'ends_at' => $subscriptionEndsAt,
             'status' => 'active',
         ];
-
-        Log::info('Creando suscripción con datos:', $subscriptionData);
-        $subscription = Subscription::create($subscriptionData);
-        Log::info('Suscripción creada exitosamente:', ['subscription_id' => $subscription->id]);
+        Subscription::create($subscriptionData);
 
         // 5. Crear dominio
-        $domainName = $data['domain'] . '.facturacion.test';
-        Log::info('Creando dominio:', ['domain' => $domainName]);
         $domain = $tenant->domains()->create(['domain' => $domainName]);
-        Log::info('Dominio creado exitosamente:', ['domain' => $domain->domain]);
 
         // 6. Inicializar datos del tenant
-        Log::info('Inicializando datos del tenant...');
         $tenant->run(function () use ($data) {
             DB::transaction(function () use ($data) {
-                Log::info('Creando usuario admin en contexto de tenant');
-                
                 $user = User::create([
                     'name' => $data['name'],
                     'email' => $data['email'],
                     'password' => Hash::make($data['password']),
                 ]);
-
-                Log::info('Usuario admin creado:', ['user_id' => $user->id]);
 
                 $adminRole = Role::create(['name' => 'admin']);
                 $user->assignRole($adminRole);
@@ -231,12 +215,8 @@ Route::post('/test-registration-process', function (Request $request) {
                     Permission::create(['name' => $permission]);
                 }
                 $adminRole->givePermissionTo($permissions);
-
-                Log::info('Roles y permisos configurados exitosamente');
             });
         });
-
-        Log::info('=== REGISTRO COMPLETADO EXITOSAMENTE ===');
 
         return response()->json([
             'success' => true,
@@ -246,22 +226,23 @@ Route::post('/test-registration-process', function (Request $request) {
             'user_email' => $data['email']
         ]);
 
-    } catch (Exception $e) {
+    } catch (\Throwable $e) { // <---- ahora atrapa todo, no solo Exception
         Log::error('ERROR EN TEST DE REGISTRO:', [
             'message' => $e->getMessage(),
-            'file' => $e->getFile(),
-            'line' => $e->getLine(),
-            'trace' => $e->getTraceAsString()
+            'file'   => $e->getFile(),
+            'line'   => $e->getLine(),
+            'trace'  => $e->getTraceAsString()
         ]);
 
         return response()->json([
             'success' => false,
-            'error' => $e->getMessage(),
-            'file' => $e->getFile(),
-            'line' => $e->getLine()
+            'error'   => $e->getMessage(),
+            'file'    => $e->getFile(),
+            'line'    => $e->getLine()
         ], 500);
     }
 });
+
 
 Route::get('/test-view-logs', function () {
     $logPath = storage_path('logs/laravel.log');

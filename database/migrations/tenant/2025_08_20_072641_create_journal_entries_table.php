@@ -13,11 +13,14 @@ return new class extends Migration
             $table->foreignId('company_id')->constrained()->onDelete('cascade');
             $table->string('entry_number', 20)->unique();
             $table->date('entry_date');
+            $table->string('reference')->nullable();
             $table->string('reference_type', 50)->nullable(); // invoice, purchase, manual
             $table->unsignedBigInteger('reference_id')->nullable();
-            $table->text('description');
-            $table->decimal('total_debit', 12, 2);
-            $table->decimal('total_credit', 12, 2);
+            $table->string('module')->nullable(); // sales, purchases, manual
+            $table->unsignedBigInteger('module_id')->nullable();
+            $table->text('description')->nullable();
+            $table->decimal('total_debit', 14, 2)->default(0);
+            $table->decimal('total_credit', 14, 2)->default(0);
             $table->string('status', 20)->default('draft'); // draft, posted
             $table->timestamps();
         });

@@ -8,6 +8,16 @@ return new class extends Migration
 {
     public function up()
     {
+        Schema::create('journal_entry_lines', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('journal_entry_id')->constrained('journal_entries')->onDelete('cascade');
+            $table->foreignId('account_id')->constrained('accounts');
+            $table->text('description')->nullable();
+            $table->decimal('debit', 14, 2)->default(0);
+            $table->decimal('credit', 14, 2)->default(0);
+            $table->timestamps();
+        });
+        
         Schema::create('journal_entry_details', function (Blueprint $table) {
             $table->id();
             $table->foreignId('journal_entry_id')->constrained()->onDelete('cascade');
