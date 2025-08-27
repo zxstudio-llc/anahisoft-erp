@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
+use App\Http\Requests\Auth\AdminLoginRequest;
 use App\Models\Tenant;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -39,6 +40,17 @@ class AuthenticatedSessionController extends Controller
             'canResetPassword' => Route::has('password.request'),
             'status' => $request->session()->get('status'),
             'tenantData' => $tenantData,
+        ]);
+    }
+
+    /**
+     * Show the admin login page (for superadmins).
+     */
+    public function createAdmin(Request $request): Response
+    {
+        return Inertia::render('auth/admin-login', [
+            'canResetPassword' => Route::has('password.request'),
+            'status' => $request->session()->get('status'),
         ]);
     }
 
@@ -86,6 +98,24 @@ class AuthenticatedSessionController extends Controller
         }
         
         // We're in tenant context, proceed with normal authentication
+        $request->authenticate();
+
+        $request->session()->regenerate();
+
+        // Generar token API si es necesario
+        if (!$request->user()->tokens()->where('name', 'default_token')->exists()) {
+            $request->user()->createToken('default_token', ['*']);
+        }
+
+        return redirect()->intended(route('tenant.dashboard', absolute: false));
+    }
+
+    /**
+     * Handle admin authentication request (for superadmins).
+     */
+    public function storeAdmin(AdminLoginRequest $request): RedirectResponse
+    {
+        // Authenticate without requiring RUC
         $request->authenticate();
 
         $request->session()->regenerate();

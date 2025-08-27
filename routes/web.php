@@ -46,6 +46,14 @@ foreach (config('tenancy.central_domains') as $domain) {
         })->name('home');
 
         Route::group(['prefix' => 'admin'], function () {
+            // Admin login route (for superadmins, no RUC required)
+            Route::middleware('guest')->group(function () {
+                Route::get('login', [App\Http\Controllers\Auth\AuthenticatedSessionController::class, 'createAdmin'])
+                    ->name('admin.login');
+                Route::post('login', [App\Http\Controllers\Auth\AuthenticatedSessionController::class, 'storeAdmin'])
+                    ->name('admin.login.store');
+            });
+
             Route::middleware(['auth', 'verified'])->group(function () {
                 Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
