@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Log;
 use Stancl\Tenancy\Facades\Tenancy;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -110,6 +111,14 @@ class AuthenticatedSessionController extends Controller
                 ]);
             }
             
+            // Log the redirect for debugging
+            \Log::info('Redirecting to tenant login', [
+                'ruc' => $request->ruc,
+                'tenant_id' => $tenant->id,
+                'domain' => $domain->domain,
+                'redirect_url' => "https://{$domain->domain}/login"
+            ]);
+            
             // Redirect to tenant login with form data
             $redirectUrl = "https://{$domain->domain}/login?" . http_build_query([
                 'email' => $request->email,
@@ -130,7 +139,8 @@ class AuthenticatedSessionController extends Controller
             $request->user()->createToken('default_token', ['*']);
         }
 
-        return redirect()->intended(route('tenant.dashboard', absolute: false));
+        // Redirect to tenant dashboard
+        return redirect()->intended('/dashboard');
     }
 
     /**
