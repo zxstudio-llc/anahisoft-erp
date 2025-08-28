@@ -87,19 +87,19 @@ class AuthenticatedSessionController extends Controller
         $isTenant = tenancy()->initialized;
         
         if (!$isTenant) {
-            // We're in the central domain, need to find tenant by RUC and redirect
-            $tenant = Tenant::whereJsonContains('data->ruc', $request->ruc)->first();
+            // We're in the central domain, need to find tenant by email and redirect
+            $tenant = Tenant::whereJsonContains('data->email', $request->email)->first();
             
             if (!$tenant) {
                 throw ValidationException::withMessages([
-                    'ruc' => 'No se encontró una empresa registrada con este RUC.',
+                    'email' => 'No se encontró una empresa registrada con este correo electrónico.',
                 ]);
             }
             
             // Check if tenant is active
             if (!$tenant->is_active) {
                 throw ValidationException::withMessages([
-                    'ruc' => 'La empresa está desactivada. Contacte al administrador.',
+                    'email' => 'La empresa está desactivada. Contacte al administrador.',
                 ]);
             }
             
@@ -107,13 +107,13 @@ class AuthenticatedSessionController extends Controller
             $domain = $tenant->domains()->first();
             if (!$domain) {
                 throw ValidationException::withMessages([
-                    'ruc' => 'Error en la configuración del dominio. Contacte al administrador.',
+                    'email' => 'Error en la configuración del dominio. Contacte al administrador.',
                 ]);
             }
             
             // Log the redirect for debugging
             \Log::info('Redirecting to tenant login', [
-                'ruc' => $request->ruc,
+                'email' => $request->email,
                 'tenant_id' => $tenant->id,
                 'domain' => $domain->domain,
                 'redirect_url' => "https://{$domain->domain}/login"
@@ -122,7 +122,6 @@ class AuthenticatedSessionController extends Controller
             // Redirect to tenant login with form data
             $redirectUrl = "https://{$domain->domain}/login?" . http_build_query([
                 'email' => $request->email,
-                'ruc' => $request->ruc,
                 'remember' => $request->boolean('remember') ? '1' : '0'
             ]);
             

@@ -91,11 +91,11 @@ class RegisteredUserController extends Controller
             'billing_period' => 'required|in:monthly,yearly',
         ]);
         
-        // Validar que el RUC no esté duplicado en tenants existentes
-        $existingTenant = Tenant::whereJsonContains('data->ruc', $request->ruc)->first();
+        // Validar que el dominio no esté duplicado en tenants existentes
+        $existingTenant = Tenant::where('id', $request->domain)->first();
         if ($existingTenant) {
             throw ValidationException::withMessages([
-                'ruc' => 'Ya existe una empresa registrada con este RUC.',
+                'domain' => 'Ya existe una empresa registrada con este subdominio.',
             ]);
         }
         
@@ -170,7 +170,7 @@ class RegisteredUserController extends Controller
             'subscription_ends_at' => $subscriptionEndsAt
         ]);
 
-        // ✅ CORRECCION: Crear el tenant con los campos correctos incluyendo RUC
+        // ✅ CORRECCION: Crear el tenant con los campos correctos
         Log::info('=== CREANDO TENANT ===');
         $tenantData = [
             'id' => $request->domain,
@@ -184,7 +184,7 @@ class RegisteredUserController extends Controller
             'subscription_ends_at' => $subscriptionEndsAt,
             'data' => [
                 'company_name' => $request->company_name,
-                'ruc' => $request->ruc, // ✅ AGREGAR RUC AL DATA JSON
+                'email' => $request->email, // ✅ AGREGAR EMAIL PARA ACCESO AL TENANT
                 // ✅ AGREGAR DATOS ADICIONALES DEL PLAN
                 'plan_name' => $plan ? $plan->name : 'Plan Gratuito',
                 'plan_price' => $plan ? $plan->price : 0,

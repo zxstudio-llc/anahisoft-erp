@@ -547,6 +547,19 @@ export default function Register({ freePlan, selectedPlan, app_domain, billing_p
             return;
         }
     
+        // Validar que todos los campos obligatorios de los pasos anteriores estén completos
+        if (!data.ruc || !data.company_name || !data.domain) {
+            toast.error('Por favor complete todos los campos obligatorios de los pasos anteriores');
+            scrollToTop();
+            return;
+        }
+        
+        if (!rucValidated) {
+            toast.error('Por favor valide el RUC antes de continuar');
+            scrollToTop();
+            return;
+        }
+    
         // Si el plan es pagado, mostrar el modal de pago
         if (selectedPlan && selectedPlan.price > 0) {
             setShowPaymentModal(true);
