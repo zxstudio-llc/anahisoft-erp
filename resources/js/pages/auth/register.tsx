@@ -312,11 +312,23 @@ export default function Register({ freePlan, selectedPlan, app_domain, billing_p
 
     const handleRegistration = async (paymentId: string) => {
         console.log('=== INICIANDO REGISTRO FRONTEND ===');
+        
+        // Asegurar que todos los campos necesarios estén presentes
         const formData = {
             ...data,
             payment_id: paymentId,
-            // Include RUC in data JSON structure
+            // Asegurar que el RUC esté presente
             ruc: data.ruc,
+            // Asegurar que los campos básicos estén presentes
+            company_name: data.company_name,
+            domain: data.domain,
+            plan_id: data.plan_id,
+            billing_period: data.billing_period,
+            // Campos de usuario
+            name: data.name,
+            email: data.email,
+            password: data.password,
+            password_confirmation: data.password_confirmation,
         };
         
         console.log('Datos del formulario:', formData);
@@ -571,54 +583,27 @@ export default function Register({ freePlan, selectedPlan, app_domain, billing_p
     
         const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
     
-        // Validar campos del paso actual
-        if (currentStep === 1) {
-            if (!data.ruc || !data.company_name || !data.domain) {
-                toast.error('Por favor complete todos los campos obligatorios');
-                scrollToTop();
-                return;
-            }
-            if (!rucValidated) {
-                toast.error('Por favor valide el RUC antes de continuar');
-                scrollToTop();
-                return;
-            }
-            
-            // Validar el dominio
-            const domainError = validateDomain(data.domain);
-            if (domainError) {
-                setError('domain', domainError);
-                toast.error('Por favor corrija los errores en el subdominio');
-                scrollToTop();
-                return;
-            }
-            
-            // Verificar errores pendientes
-            if (errors.domain) {
-                toast.error('Por favor corrija los errores en el subdominio');
-                scrollToTop();
-                return;
-            }
-        }
-    
-        if (currentStep === 4) {
-            if (!data.name || !data.email || !data.password || !data.password_confirmation) {
-                toast.error('Por favor complete todos los campos obligatorios');
-                scrollToTop();
-                return;
-            }
-    
-            // Si el plan es pagado, mostrar el modal de pago
-            if (selectedPlan && selectedPlan.price > 0) {
-                setShowPaymentModal(true);
-                return;
-            }
-    
-            // Si el plan es gratuito, proceder con el registro normal
-            handleRegistration('');
-        } else {
+        // Solo procesar el envío si estamos en el último paso
+        if (currentStep !== 4) {
             nextStep();
+            return;
         }
+    
+        // Validar campos del último paso
+        if (!data.name || !data.email || !data.password || !data.password_confirmation) {
+            toast.error('Por favor complete todos los campos obligatorios');
+            scrollToTop();
+            return;
+        }
+    
+        // Si el plan es pagado, mostrar el modal de pago
+        if (selectedPlan && selectedPlan.price > 0) {
+            setShowPaymentModal(true);
+            return;
+        }
+    
+        // Si el plan es gratuito, proceder con el registro normal
+        handleRegistration('');
     };
     
     // 3. useEffect para limpiar automáticamente cuando domain cambie desde otro lugar

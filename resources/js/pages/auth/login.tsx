@@ -1,6 +1,7 @@
 import { Head, useForm } from '@inertiajs/react';
 import { LoaderCircle } from 'lucide-react';
 import { FormEventHandler } from 'react';
+import { toast } from 'sonner';
 
 import InputError from '@/components/input-error';
 import TextLink from '@/components/text-link';
@@ -32,6 +33,13 @@ export default function Login({ status, canResetPassword }: LoginProps) {
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
+        
+        // Validar que el RUC tenga 13 dígitos
+        if (data.ruc.length !== 13) {
+            toast.error('El RUC debe tener 13 dígitos');
+            return;
+        }
+        
         post(route('login'), {
             onFinish: () => reset('password'),
         });

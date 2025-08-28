@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rules;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 use Illuminate\Support\Str;
@@ -84,11 +85,19 @@ class RegisteredUserController extends Controller
             'email' => 'required|string|email|max:255|unique:users',
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
             'company_name' => 'required|string|max:255',
-            'ruc' => ['required', 'string', 'size:13', 'unique:tenants,data->ruc'],
+            'ruc' => ['required', 'string', 'size:13'],
             'domain' => ['required', 'string', 'max:255', 'regex:/^[a-z0-9-]+$/'],
             'plan_id' => 'required|exists:subscription_plans,id',
             'billing_period' => 'required|in:monthly,yearly',
         ]);
+        
+        // Validar que el RUC no esté duplicado en tenants existentes
+        $existingTenant = Tenant::whereJsonContains('data->ruc', $request->ruc)->first();
+        if ($existingTenant) {
+            throw ValidationException::withMessages([
+                'ruc' => 'Ya existe una empresa registrada con este RUC.',
+            ]);
+        }
         
         Log::info('Validación de campos básicos completada');
     } catch (\Illuminate\Validation\ValidationException $e) {
@@ -181,11 +190,31 @@ class RegisteredUserController extends Controller
                 'plan_price' => $plan ? $plan->price : 0,
                 // ✅ AGREGAR DATOS ADICIONALES DE SUNAT
                 'business_name' => $request->business_name ?? $request->company_name,
-                'status' => $request->status,
-                'taxpayer_status' => $request->taxpayer_status ?? $request->condition,
-                'head_office_address' => $request->head_office_address ?? $request->address,
-                'trade_name' => $request->trade_name,
-                'registration_date' => $request->registration_date,
+                'status' => $request->status ?? '',
+                'taxpayer_status' => $request->taxpayer_status ?? $request->condition ?? '',
+                'head_office_address' => $request->head_office_address ?? $request->address ?? '',
+                'trade_name' => $request->trade_name ?? '',
+                'registration_date' => $request->registration_date ?? '',
+                // ✅ AGREGAR CAMPOS DE UBICACIÓN
+                'province' => $request->province ?? '',
+                'department' => $request->department ?? '',
+                'district' => $request->district ?? '',
+                'parish' => $request->parish ?? '',
+                // ✅ AGREGAR CAMPOS ADICIONALES DE SUNAT
+                'emission_system' => $request->emission_system ?? '',
+                'accounting_system' => $request->accounting_system ?? '',
+                'foreign_trade_activity' => $request->foreign_trade_activity ?? '',
+                'economic_activities' => $request->economic_activities ?? [],
+                'payment_vouchers' => $request->payment_vouchers ?? [],
+                'electronic_systems' => $request->electronic_systems ?? [],
+                'electronic_emission_date' => $request->electronic_emission_date ?? '',
+                'electronic_vouchers' => $request->electronic_vouchers ?? [],
+                'ple_date' => $request->ple_date ?? '',
+                'registries' => $request->registries ?? [],
+                'withdrawal_date' => $request->withdrawal_date ?? '',
+                'profession' => $request->profession ?? '',
+                'ubigeo' => $request->ubigeo ?? '',
+                'capital' => $request->capital ?? 0,
             ],
         ];
         
