@@ -298,9 +298,9 @@ export default function Register({ freePlan, selectedPlan, app_domain, billing_p
 
     const formatPrice = (price: number, billingPeriod: string) => {
         const finalPrice = calculatePrice(price, billingPeriod);
-        const formatted = new Intl.NumberFormat('es-PE', {
+        const formatted = new Intl.NumberFormat('es-EC', {
             style: 'currency',
-            currency: 'PEN',
+            currency: 'USD',
             minimumFractionDigits: 2,
         }).format(finalPrice);
         
