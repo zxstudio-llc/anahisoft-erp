@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import AuthSplitLayout from '@/layouts/auth/auth-split-layout';
+import AuthLayout from '@/layouts/auth/auth-split-layout';
 
 type DomainLoginForm = {
     email: string;
@@ -20,7 +20,7 @@ interface DomainLoginProps {
     status?: string;
     canResetPassword: boolean;
     tenantData?: {
-        company_name?: string;
+        trade_name?: string;
         ruc?: string;
     };
 }
@@ -56,9 +56,10 @@ export default function DomainLogin({ status, canResetPassword, tenantData }: Do
     };
 
     return (
-        <AuthSplitLayout 
-            title={tenantData?.company_name ? `Iniciar sesión - ${tenantData.company_name}` : "Iniciar sesión en su cuenta"} 
-            description={tenantData?.ruc ? `RUC: ${tenantData.ruc} - Ingrese su correo y contraseña` : "Ingrese su correo y contraseña para continuar"}
+        <AuthLayout
+            title="Bienvenido de nuevo"
+            description="Ingrese su correo y contraseña de su empresa para iniciar sesión en su panel administrativo"
+            backgroundImage="/images/ANAHISOFT-02.jpg"
         >
             <Head title="Iniciar sesión" />
 
@@ -139,6 +140,6 @@ export default function DomainLogin({ status, canResetPassword, tenantData }: Do
             </form>
 
             {status && <div className="mb-4 text-center text-sm font-medium text-green-600">{status}</div>}
-        </AuthSplitLayout>
+        </AuthLayout>
     );
 }

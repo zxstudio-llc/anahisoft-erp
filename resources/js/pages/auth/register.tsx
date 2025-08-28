@@ -312,23 +312,42 @@ export default function Register({ freePlan, selectedPlan, app_domain, billing_p
 
     const handleRegistration = async (paymentId: string) => {
         console.log('=== INICIANDO REGISTRO FRONTEND ===');
-        
-        // Asegurar que todos los campos necesarios estén presentes
         const formData = {
             ...data,
             payment_id: paymentId,
+            // Include RUC in data JSON structure
+            ruc: data.ruc,
         };
         
         console.log('Datos del formulario:', formData);
-        
-        // Usar el formulario nativo de Inertia
-        post(route('register'), formData, {
-            onSuccess: (response) => {
+    
+        try {
+            // Show loading state immediately
+            const loadingToast = toast.loading('Creando su cuenta y configurando su sistema...');
+            
+            console.log('Enviando petición de registro...');
+            
+            // Usar Axios directamente para tener más control
+            const response = await axios.post(route('register'), formData, {
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
+                }
+            });
+    
+            console.log('Respuesta recibida:', response);
+            
+            // Dismiss loading toast
+            toast.dismiss(loadingToast);
+    
+            if (response.data.success) {
                 console.log('Registro exitoso, redirigiendo...');
-                toast.success('Cuenta creada exitosamente');
+                toast.success(response.data.message || 'Cuenta creada exitosamente');
                 
                 // Usar la URL de redirección del servidor
-                const redirectUrl = response?.props?.redirect || `https://${data.domain}.${app_domain}/login`;
+                const redirectUrl = response.data.redirect || `https://${data.domain}.${app_domain}/login`;
                 
                 console.log('URL de redirección:', redirectUrl);
                 
@@ -342,21 +361,39 @@ export default function Register({ freePlan, selectedPlan, app_domain, billing_p
                     console.log('Redirigiendo a:', redirectUrl);
                     window.location.href = redirectUrl;
                 }, 2000);
-            },
-            onError: (errors) => {
-                console.error('Registro falló - errores de validación:', errors);
+            } else {
+                console.error('Registro falló - respuesta no exitosa:', response.data);
+                toast.error(response.data.message || 'Error al crear la cuenta');
+            }
+        } catch (error) {
+            console.error('=== ERROR EN REGISTRO FRONTEND ===');
+            console.error('Error completo:', error);
+            console.error('Respuesta del error:', error.response?.data);
+            console.error('Status del error:', error.response?.status);
+            console.error('Headers del error:', error.response?.headers);
+            
+            if (error.response && error.response.data) {
+                const errorData = error.response.data;
                 
-                if (errors) {
-                    Object.keys(errors).forEach((key) => {
-                        if (errors[key]) {
-                            toast.error(Array.isArray(errors[key]) ? errors[key][0] : errors[key]);
+                if (errorData.errors) {
+                    console.error('Errores de validación:', errorData.errors);
+                    Object.keys(errorData.errors).forEach((key) => {
+                        if (errorData.errors[key]) {
+                            toast.error(Array.isArray(errorData.errors[key]) ? errorData.errors[key][0] : errorData.errors[key]);
                         }
                     });
+                } else if (errorData.message) {
+                    console.error('Mensaje de error:', errorData.message);
+                    toast.error(errorData.message);
                 } else {
+                    console.error('Error sin mensaje específico');
                     toast.error('Error al crear la cuenta. Por favor intente nuevamente.');
                 }
+            } else {
+                console.error('Error sin respuesta del servidor');
+                toast.error('Error de conexión. Por favor intente nuevamente.');
             }
-        });
+        }
     };
 
     const handlePaymentSuccess = (paymentId: string) => {
@@ -534,40 +571,54 @@ export default function Register({ freePlan, selectedPlan, app_domain, billing_p
     
         const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
     
-        // Solo procesar el envío si estamos en el último paso
-        if (currentStep !== 4) {
+        // Validar campos del paso actual
+        if (currentStep === 1) {
+            if (!data.ruc || !data.company_name || !data.domain) {
+                toast.error('Por favor complete todos los campos obligatorios');
+                scrollToTop();
+                return;
+            }
+            if (!rucValidated) {
+                toast.error('Por favor valide el RUC antes de continuar');
+                scrollToTop();
+                return;
+            }
+            
+            // Validar el dominio
+            const domainError = validateDomain(data.domain);
+            if (domainError) {
+                setError('domain', domainError);
+                toast.error('Por favor corrija los errores en el subdominio');
+                scrollToTop();
+                return;
+            }
+            
+            // Verificar errores pendientes
+            if (errors.domain) {
+                toast.error('Por favor corrija los errores en el subdominio');
+                scrollToTop();
+                return;
+            }
+        }
+    
+        if (currentStep === 4) {
+            if (!data.name || !data.email || !data.password || !data.password_confirmation) {
+                toast.error('Por favor complete todos los campos obligatorios');
+                scrollToTop();
+                return;
+            }
+    
+            // Si el plan es pagado, mostrar el modal de pago
+            if (selectedPlan && selectedPlan.price > 0) {
+                setShowPaymentModal(true);
+                return;
+            }
+    
+            // Si el plan es gratuito, proceder con el registro normal
+            handleRegistration('');
+        } else {
             nextStep();
-            return;
         }
-    
-        // Validar campos del último paso
-        if (!data.name || !data.email || !data.password || !data.password_confirmation) {
-            toast.error('Por favor complete todos los campos obligatorios');
-            scrollToTop();
-            return;
-        }
-    
-        // Validar que todos los campos obligatorios de los pasos anteriores estén completos
-        if (!data.ruc || !data.company_name || !data.domain) {
-            toast.error('Por favor complete todos los campos obligatorios de los pasos anteriores');
-            scrollToTop();
-            return;
-        }
-        
-        if (!rucValidated) {
-            toast.error('Por favor valide el RUC antes de continuar');
-            scrollToTop();
-            return;
-        }
-    
-        // Si el plan es pagado, mostrar el modal de pago
-        if (selectedPlan && selectedPlan.price > 0) {
-            setShowPaymentModal(true);
-            return;
-        }
-    
-        // Si el plan es gratuito, proceder con el registro normal
-        handleRegistration('');
     };
     
     // 3. useEffect para limpiar automáticamente cuando domain cambie desde otro lugar
@@ -979,7 +1030,8 @@ export default function Register({ freePlan, selectedPlan, app_domain, billing_p
                         </Button>
                     ) : (
                         <Button
-                            type="submit"
+                            type="button"
+                            onClick={(e) => submit(e)}
                             disabled={processing}
                             className="ml-auto h-auto w-full bg-gradient-to-r from-indigo-600 to-purple-600 px-3 py-1.5 text-sm text-white hover:from-indigo-700 hover:to-purple-700"
                         >
@@ -992,29 +1044,6 @@ export default function Register({ freePlan, selectedPlan, app_domain, billing_p
                     ¿Ya tienes una cuenta? <TextLink href={route('login')}>Iniciar sesión</TextLink>
                 </div>
             </form>
-
-            {/* Formulario oculto para Inertia */}
-            <form 
-                ref={(form) => {
-                    if (form) {
-                        // Configurar el formulario para Inertia
-                        form.action = route('register');
-                        form.method = 'POST';
-                        
-                        // Agregar campos ocultos
-                        Object.keys(data).forEach(key => {
-                            if (data[key] !== undefined && data[key] !== null && data[key] !== '') {
-                                const input = document.createElement('input');
-                                input.type = 'hidden';
-                                input.name = key;
-                                input.value = Array.isArray(data[key]) ? JSON.stringify(data[key]) : data[key];
-                                form.appendChild(input);
-                            }
-                        });
-                    }
-                }}
-                style={{ display: 'none' }}
-            />
 
             <PaymentModal
                 isOpen={showPaymentModal}

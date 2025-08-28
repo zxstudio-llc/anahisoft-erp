@@ -147,29 +147,30 @@ export const tenantNavItems: NavItem[] = [
             //     icon: Receipt,
             // },
             {
-                title: 'Plan de cuentas', href: '/finanzas/chart-of-accounts',
+                title: 'Plan de cuentas', 
+                href: route('tenant.chart-of-accounts.index'),
                 icon: FileText,
             },
-            {
-                title: 'Estados de cuenta', href: '/finanzas/account-statements',
-                icon: FileClock,
-            },
-            {
-                title: 'Estados financieros', href: '/finanzas/financial-statements',
-                icon: FileSpreadsheet,
-            },
-            {
-                title: 'Libro mayor', href: '/finanzas/general-ledger',
-                icon: BarChart3,
-            },
-            {
-                title: 'Asientos de diario', href: '/finanzas/journal-entries',
-                icon: BarChart3,
-            },
-            {
-                title: 'Balance', href: '/finanzas/trial-balance',
-                icon: BarChart3,
-            },
+            // {
+            //     title: 'Estados de cuenta', href: '/finanzas/account-statements',
+            //     icon: FileClock,
+            // },
+            // {
+            //     title: 'Estados financieros', href: '/finanzas/financial-statements',
+            //     icon: FileSpreadsheet,
+            // },
+            // {
+            //     title: 'Libro mayor', href: '/finanzas/general-ledger',
+            //     icon: BarChart3,
+            // },
+            // {
+            //     title: 'Asientos de diario', href: '/finanzas/journal-entries',
+            //     icon: BarChart3,
+            // },
+            // {
+            //     title: 'Balance', href: '/finanzas/trial-balance',
+            //     icon: BarChart3,
+            // },
         ],
     },
     {

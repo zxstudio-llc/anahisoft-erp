@@ -6,15 +6,12 @@ import { toast } from 'sonner';
 import InputError from '@/components/input-error';
 import TextLink from '@/components/text-link';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AuthLayout from '@/layouts/auth/auth-split-layout';
 
 type LoginForm = {
-    email: string;
-    password: string;
-    remember: boolean;
+    ruc: string;
 };
 
 interface LoginProps {
@@ -22,112 +19,90 @@ interface LoginProps {
     canResetPassword: boolean;
 }
 
-export default function Login({ status, canResetPassword }: LoginProps) {
+export default function Login({ status }: LoginProps) {
     const { data, setData, post, processing, errors, reset } = useForm<Required<LoginForm>>({
-        email: '',
-        password: '',
-        remember: false,
+        ruc: '',
     });
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
+
+        // Validar que el RUC tenga 13 dígitos
+        if (data.ruc.length !== 13) {
+            toast.error('El RUC debe tener 13 dígitos');
+            return;
+        }
+
+        // Post al controlador central
+        post(route('validate'), {
+            onSuccess: (page) => {
+                // Si el backend envía un URL en el response
+                const tenantUrl = page.props?.redirect ?? null;
+                if (tenantUrl) {
+                    window.location.href = tenantUrl; // fuerza redirección cross-domain
+                    return;
+                }
         
-        post(route('login'), {
-            onFinish: () => reset('password'),
+                toast.success('RUC válido. Redirigiendo al login de su empresa...');
+            },
+            onError: (errs) => {
+                if (errs.ruc) toast.error(errs.ruc);
+            },
+            onFinish: () => reset('ruc'),
         });
+        
     };
 
     return (
-        <AuthLayout title="Iniciar sesión en su cuenta" description="Ingrese su correo electrónico y contraseña para iniciar sesión" backgroundImage="/images/ANAHISOFT-02.jpg">
-            <Head title="Log in" />
+        <AuthLayout
+            title="Iniciar sesión en su cuenta"
+            description="Ingrese el RUC de su empresa para iniciar sesión en su panel administrativo"
+            backgroundImage="/images/ANAHISOFT-02.jpg"
+        >
+            <Head title="Iniciar sesión" />
 
             <form className="flex flex-col gap-6" onSubmit={submit}>
                 <div className="grid gap-6">
                     <div className="grid gap-2">
-                        <Label htmlFor="email">Correo Electrónico</Label>
+                        <Label htmlFor="ruc">RUC de la Empresa</Label>
                         <Input
-                            id="email"
-                            type="email"
+                            id="ruc"
+                            type="text"
                             required
                             autoFocus
                             tabIndex={1}
-                            autoComplete="email"
-                            value={data.email}
-                            onChange={(e) => setData('email', e.target.value)}
-                            placeholder="correo@ejemplo.com"
+                            value={data.ruc}
+                            onChange={(e) => {
+                                const value = e.target.value.replace(/[^0-9]/g, '').slice(0, 13);
+                                setData('ruc', value);
+                            }}
+                            placeholder="Ingrese el RUC de su empresa (13 dígitos)"
+                            maxLength={13}
+                            pattern="[0-9]*"
+                            inputMode="numeric"
                             className="bg-white/50 backdrop-blur-sm dark:bg-gray-900/50"
                         />
-                        <InputError message={errors.email} />
+                        <InputError message={errors.ruc} />
                         <p className="text-xs text-muted-foreground">
-                            Ingrese su correo electrónico para acceder al panel administrativo correspondiente.
+                            Ingrese el RUC de su empresa para acceder al panel administrativo correspondiente.
                         </p>
                     </div>
 
-                    <div className="grid gap-2">
-                        <Label htmlFor="password">Contraseña</Label>
-                        <Input
-                            id="password"
-                            type="password"
-                            required
-                            tabIndex={2}
-                            autoComplete="current-password"
-                            value={data.password}
-                            onChange={(e) => setData('password', e.target.value)}
-                            placeholder="Contraseña"
-                            className="bg-white/50 backdrop-blur-sm dark:bg-gray-900/50"
-                        />
-                        <InputError message={errors.password} />
-                    </div>
-
-                    <div className="grid gap-2">
-                        <div className="flex items-center">
-                            <Label htmlFor="password">Contraseña</Label>
-                            {canResetPassword && (
-                                <TextLink href={route('password.request')} className="ml-auto text-sm" tabIndex={3}>
-                                    ¿Olvidó su contraseña?
-                                </TextLink>
-                            )}
-                        </div>
-                        <Input
-                            id="password"
-                            type="password"
-                            required
-                            tabIndex={2}
-                            autoComplete="current-password"
-                            value={data.password}
-                            onChange={(e) => setData('password', e.target.value)}
-                            placeholder="Contraseña"
-                            className="bg-white/50 backdrop-blur-sm dark:bg-gray-900/50"
-                        />
-                        <InputError message={errors.password} />
-                    </div>
-
-                    <div className="flex items-center space-x-3">
-                        <Checkbox
-                            id="remember"
-                            name="remember"
-                            checked={data.remember}
-                            onClick={() => setData('remember', !data.remember)}
-                            tabIndex={3}
-                        />
-                        <Label htmlFor="remember">Recordarme</Label>
-                    </div>
-
-                    <Button type="submit" className="mt-4 w-full" tabIndex={4} disabled={processing}>
+                    <Button type="submit" className="mt-4 w-full" tabIndex={5} disabled={processing}>
                         {processing && <LoaderCircle className="h-4 w-4 animate-spin" />}
-                        Iniciar Sesión
+                        Continuar
                     </Button>
                 </div>
 
-                <div className="text-center text-sm text-muted-foreground space-y-2">
+                <div className="text-center text-sm text-muted-foreground space-y-2 mt-4">
                     <div>
                         ¿No tiene una cuenta?{' '}
-                        <TextLink href={route('register')} tabIndex={5}>
+                        <TextLink href={route('register')} tabIndex={7}>
                             Registrarse
                         </TextLink>
                     </div>
                     <div>
-                        <TextLink href={route('admin.login')} tabIndex={6} className="text-xs">
+                        <TextLink href={route('admin.login')} tabIndex={8} className="text-xs">
                             Acceso para administradores →
                         </TextLink>
                     </div>

@@ -66,123 +66,123 @@ Route::middleware([
         Route::get('/', [DashboardController::class, 'index'])->name('tenant.dashboard');
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('tenant.dashboard');
 
-        Route::prefix('finanzas')->group(function () {
-            Route::get('/', function () {
-                $referer = request()->headers->get('referer');
+        // Route::prefix('finanzas')->group(function () {
+        //     Route::get('/', function () {
+        //         $referer = request()->headers->get('referer');
             
-                if ($referer && str_contains($referer, '/finanzas/')) {
-                    return redirect(parse_url($referer, PHP_URL_PATH));
-                }
+        //         if ($referer && str_contains($referer, '/finanzas/')) {
+        //             return redirect(parse_url($referer, PHP_URL_PATH));
+        //         }
             
-                return redirect('/dashboard');
-            });
-            Route::get('/chart-of-accounts', fn () => Inertia::render('Tenant/Accounting/chart-of-accounts'));
-            Route::get('/account-statements', fn () => Inertia::render('Tenant/Accounting/account-statements'));
-            Route::get('/financial-statements', fn () => Inertia::render('Tenant/Accounting/financial-statements'));
-            Route::get('/general-ledger', fn () => Inertia::render('Tenant/Accounting/general-ledger'));
-            Route::get('/journal-entries', fn () => Inertia::render('Tenant/Accounting/journal-entries'));
-            Route::get('/trial-balance', fn () => Inertia::render('Tenant/Accounting/trial-balance'));
-        });
+        //         return redirect('/dashboard');
+        //     });
+        //     Route::get('/chart-of-accounts', fn () => Inertia::render('Tenant/Accounting/chart-of-accounts'));
+        //     Route::get('/account-statements', fn () => Inertia::render('Tenant/Accounting/account-statements'));
+        //     Route::get('/financial-statements', fn () => Inertia::render('Tenant/Accounting/financial-statements'));
+        //     Route::get('/general-ledger', fn () => Inertia::render('Tenant/Accounting/general-ledger'));
+        //     Route::get('/journal-entries', fn () => Inertia::render('Tenant/Accounting/journal-entries'));
+        //     Route::get('/trial-balance', fn () => Inertia::render('Tenant/Accounting/trial-balance'));
+        // });
         
-        // CRM y Ventas
-        Route::prefix('crm')->group(function () {
-            Route::get('/', function () {
-                $referer = request()->headers->get('referer');
+        // // CRM y Ventas
+        // Route::prefix('crm')->group(function () {
+        //     Route::get('/', function () {
+        //         $referer = request()->headers->get('referer');
             
-                if ($referer && str_contains($referer, '/crm/')) {
-                    return redirect(parse_url($referer, PHP_URL_PATH));
-                }
+        //         if ($referer && str_contains($referer, '/crm/')) {
+        //             return redirect(parse_url($referer, PHP_URL_PATH));
+        //         }
             
-                return redirect('/dashboard');
-            });
-            Route::get('/leads', fn () => Inertia::render('Tenant/Crm/customer-list'));
-            Route::get('/pipeline', fn () => Inertia::render('Tenant/Crm/sales-pipeline'));
-            // Route::get('/tareas', fn () => Inertia::render('Tenant/CRM/Tareas'));
-        });
+        //         return redirect('/dashboard');
+        //     });
+        //     Route::get('/leads', fn () => Inertia::render('Tenant/Crm/customer-list'));
+        //     Route::get('/pipeline', fn () => Inertia::render('Tenant/Crm/sales-pipeline'));
+        //     // Route::get('/tareas', fn () => Inertia::render('Tenant/CRM/Tareas'));
+        // });
         
-        // Inventario y Compras
-        Route::prefix('inventory')->group(function () {
-            Route::get('/', function () {
-                $referer = request()->headers->get('referer');
+        // // Inventario y Compras
+        // Route::prefix('inventory')->group(function () {
+        //     Route::get('/', function () {
+        //         $referer = request()->headers->get('referer');
             
-                if ($referer && str_contains($referer, '/inventory/')) {
-                    return redirect(parse_url($referer, PHP_URL_PATH));
-                }
+        //         if ($referer && str_contains($referer, '/inventory/')) {
+        //             return redirect(parse_url($referer, PHP_URL_PATH));
+        //         }
             
-                return redirect('/dashboard');
-            });
-            Route::get('/purchase-orders', fn () => Inertia::render('Tenant/Inventory/purchase-orders'));
-            Route::get('/stock-movements', fn () => Inertia::render('Tenant/Inventory/stock-movements'));
-            Route::get('/providers-management', fn () => Inertia::render('Tenant/Inventory/providers-management'));
-            Route::get('/warehouse-management', fn () => Inertia::render('Tenant/Inventory/warehouse-management'));
-            Route::get('/inventory-management', fn () => Inertia::render('Tenant/Inventory/inventory-management'));
-        });
+        //         return redirect('/dashboard');
+        //     });
+        //     Route::get('/purchase-orders', fn () => Inertia::render('Tenant/Inventory/purchase-orders'));
+        //     Route::get('/stock-movements', fn () => Inertia::render('Tenant/Inventory/stock-movements'));
+        //     Route::get('/providers-management', fn () => Inertia::render('Tenant/Inventory/providers-management'));
+        //     Route::get('/warehouse-management', fn () => Inertia::render('Tenant/Inventory/warehouse-management'));
+        //     Route::get('/inventory-management', fn () => Inertia::render('Tenant/Inventory/inventory-management'));
+        // });
         
-        Route::prefix('compras')->group(function () {
-            Route::get('/', function () {
-                $referer = request()->headers->get('referer');
+        // Route::prefix('compras')->group(function () {
+        //     Route::get('/', function () {
+        //         $referer = request()->headers->get('referer');
             
-                if ($referer && str_contains($referer, '/compras/')) {
-                    return redirect(parse_url($referer, PHP_URL_PATH));
-                }
+        //         if ($referer && str_contains($referer, '/compras/')) {
+        //             return redirect(parse_url($referer, PHP_URL_PATH));
+        //         }
             
-                return redirect('/dashboard');
-            });
-            Route::get('/proveedores', fn () => Inertia::render('Tenant/Compras/Proveedores'));
-            Route::get('/ordenes', fn () => Inertia::render('Tenant/Compras/Ordenes'));
-        });
+        //         return redirect('/dashboard');
+        //     });
+        //     Route::get('/proveedores', fn () => Inertia::render('Tenant/Compras/Proveedores'));
+        //     Route::get('/ordenes', fn () => Inertia::render('Tenant/Compras/Ordenes'));
+        // });
         
         // Producción
-        Route::prefix('produccion')->group(function () {
-            Route::get('/', function () {
-                $referer = request()->headers->get('referer');
+        // Route::prefix('produccion')->group(function () {
+        //     Route::get('/', function () {
+        //         $referer = request()->headers->get('referer');
             
-                if ($referer && str_contains($referer, '/produccion/')) {
-                    return redirect(parse_url($referer, PHP_URL_PATH));
-                }
+        //         if ($referer && str_contains($referer, '/produccion/')) {
+        //             return redirect(parse_url($referer, PHP_URL_PATH));
+        //         }
             
-                return redirect('/dashboard');
-            });
-            Route::get('/ordenes', fn () => Inertia::render('Tenant/Manufacturing/production-orders'));
-            Route::get('/mrp', fn () => Inertia::render('Tenant/Manufacturing/mrp'));
-            Route::get('/process-control', fn () => Inertia::render('Tenant/Manufacturing/process-control'));
-            Route::get('/work-centers', fn () => Inertia::render('Tenant/Manufacturing/work-centers'));
-            Route::get('/quality-control', fn () => Inertia::render('Tenant/Manufacturing/quality-control'));
-        });
+        //         return redirect('/dashboard');
+        //     });
+        //     Route::get('/ordenes', fn () => Inertia::render('Tenant/Manufacturing/production-orders'));
+        //     Route::get('/mrp', fn () => Inertia::render('Tenant/Manufacturing/mrp'));
+        //     Route::get('/process-control', fn () => Inertia::render('Tenant/Manufacturing/process-control'));
+        //     Route::get('/work-centers', fn () => Inertia::render('Tenant/Manufacturing/work-centers'));
+        //     Route::get('/quality-control', fn () => Inertia::render('Tenant/Manufacturing/quality-control'));
+        // });
         
-        // Recursos Humanos
-        Route::prefix('rrhh')->group(function () {
-            Route::get('/', function () {
-                $referer = request()->headers->get('referer');
+        // // Recursos Humanos
+        // Route::prefix('rrhh')->group(function () {
+        //     Route::get('/', function () {
+        //         $referer = request()->headers->get('referer');
             
-                if ($referer && str_contains($referer, '/rrhh/')) {
-                    return redirect(parse_url($referer, PHP_URL_PATH));
-                }
+        //         if ($referer && str_contains($referer, '/rrhh/')) {
+        //             return redirect(parse_url($referer, PHP_URL_PATH));
+        //         }
             
-                return redirect('/dashboard');
-            });
-            Route::get('/empleados', fn () => Inertia::render('Tenant/Hr/employees'));
-            Route::get('/roles', fn () => Inertia::render('Tenant/Hr/roles'));
-            Route::get('/asistencia', fn () => Inertia::render('Tenant/Hr/asistencia'));
-            Route::get('/kpis', fn () => Inertia::render('Tenant/Hr/kpi'));
-        });
+        //         return redirect('/dashboard');
+        //     });
+        //     Route::get('/empleados', fn () => Inertia::render('Tenant/Hr/employees'));
+        //     Route::get('/roles', fn () => Inertia::render('Tenant/Hr/roles'));
+        //     Route::get('/asistencia', fn () => Inertia::render('Tenant/Hr/asistencia'));
+        //     Route::get('/kpis', fn () => Inertia::render('Tenant/Hr/kpi'));
+        // });
         
         // Business Intelligence (BI)
-        Route::prefix('bi')->group(function () {
-            Route::get('/', function () {
-                $referer = request()->headers->get('referer');
+        // Route::prefix('bi')->group(function () {
+        //     Route::get('/', function () {
+        //         $referer = request()->headers->get('referer');
             
-                if ($referer && str_contains($referer, '/bi/')) {
-                    return redirect(parse_url($referer, PHP_URL_PATH));
-                }
+        //         if ($referer && str_contains($referer, '/bi/')) {
+        //             return redirect(parse_url($referer, PHP_URL_PATH));
+        //         }
             
-                return redirect('/dashboard');
-            });
-            Route::get('/finanzas', fn () => Inertia::render('Tenant/PoweBi/Finanzas'));
-            Route::get('/ventas', fn () => Inertia::render('Tenant/PoweBi/Ventas'));
-            Route::get('/inventario', fn () => Inertia::render('Tenant/PoweBi/Inventario'));
-            Route::get('/rrhh', fn () => Inertia::render('Tenant/PoweBi/RRHH'));
-        });
+        //         return redirect('/dashboard');
+        //     });
+        //     Route::get('/finanzas', fn () => Inertia::render('Tenant/PoweBi/Finanzas'));
+        //     Route::get('/ventas', fn () => Inertia::render('Tenant/PoweBi/Ventas'));
+        //     Route::get('/inventario', fn () => Inertia::render('Tenant/PoweBi/Inventario'));
+        //     Route::get('/rrhh', fn () => Inertia::render('Tenant/PoweBi/RRHH'));
+        // });
 
         // Rutas para clientes
         Route::resource('clients', ClientController::class, ['as' => 'tenant']);
@@ -269,7 +269,10 @@ Route::middleware([
 
         // pruebas endpoint
         Route::resource('customers', CustomersController::class);
-        Route::resource('chart-of-accounts', ChartOfAccountsController::class);
+        Route::resource('chart-of-accounts', ChartOfAccountsController::class, ['as' => 'tenant']);
+        Route::post('chart-of-accounts/import', [ChartOfAccountsController::class, 'import'])
+            ->name('tenant.chart-of-accounts.import');
+
         
         Route::resource('suppliers', SupplierController::class);
         Route::resource('products', ProductsController::class);

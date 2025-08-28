@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Log;
 use Stancl\Tenancy\Facades\Tenancy;
+use Illuminate\Http\Response as HttpResponse;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -22,28 +23,29 @@ class AuthenticatedSessionController extends Controller
      * Show the login page.
      */
     public function create(Request $request): Response
-    {
-        // Check if we're in a tenant context
-        $isTenant = tenancy()->initialized;
-        $tenantData = null;
-        
-        if ($isTenant) {
-            $tenant = tenancy()->tenant;
+{
+    $tenantData = null;
+
+    // Intentar pre-cargar tenantData desde query param o central
+    $ruc = $request->query('ruc'); 
+    if ($ruc) {
+        $tenant = \App\Models\Tenant::whereJsonContains('data->ruc', $ruc)->first();
+        if ($tenant) {
             $tenantData = [
-                'company_name' => $tenant->data['company_name'] ?? null,
+                'trade_name' => $tenant->data['trade_name'] ?? null,
                 'ruc' => $tenant->data['ruc'] ?? null,
             ];
         }
-        
-        // Determine which view to render based on context
-        $view = $isTenant ? 'auth/domain-login' : 'auth/login';
-    
-        return Inertia::render($view, [
-            'canResetPassword' => Route::has('password.request'),
-            'status' => $request->session()->get('status'),
-            'tenantData' => $tenantData,
-        ]);
     }
+
+    // Siempre renderizamos domain-login
+    return Inertia::render('auth/domain-login', [
+        'canResetPassword' => Route::has('password.request'),
+        'status' => $request->session()->get('status'),
+        'tenantData' => $tenantData,
+    ]);
+}
+
 
     /**
      * Show the admin login page (for superadmins).
@@ -72,7 +74,7 @@ class AuthenticatedSessionController extends Controller
             'canResetPassword' => Route::has('password.request'),
             'status' => $request->session()->get('status'),
             'tenantData' => [
-                'company_name' => $tenant->data['company_name'] ?? null,
+                'trade_name' => $tenant->data['trade_name'] ?? null,
                 'ruc' => $tenant->data['ruc'] ?? null,
             ],
         ]);
@@ -82,65 +84,64 @@ class AuthenticatedSessionController extends Controller
      * Handle an incoming authentication request.
      */
     public function store(LoginRequest $request): RedirectResponse
-    {
-        // First, check if we're already in a tenant context
-        $isTenant = tenancy()->initialized;
-        
-        if (!$isTenant) {
-            // We're in the central domain, need to find tenant by email and redirect
-            $tenant = Tenant::whereJsonContains('data->email', $request->email)->first();
-            
-            if (!$tenant) {
-                throw ValidationException::withMessages([
-                    'email' => 'No se encontró una empresa registrada con este correo electrónico.',
-                ]);
-            }
-            
-            // Check if tenant is active
-            if (!$tenant->is_active) {
-                throw ValidationException::withMessages([
-                    'email' => 'La empresa está desactivada. Contacte al administrador.',
-                ]);
-            }
-            
-            // Get tenant domain
-            $domain = $tenant->domains()->first();
-            if (!$domain) {
-                throw ValidationException::withMessages([
-                    'email' => 'Error en la configuración del dominio. Contacte al administrador.',
-                ]);
-            }
-            
-            // Log the redirect for debugging
-            \Log::info('Redirecting to tenant login', [
-                'email' => $request->email,
-                'tenant_id' => $tenant->id,
-                'domain' => $domain->domain,
-                'redirect_url' => "https://{$domain->domain}/login"
+{
+    // 1️⃣ Verificar si ya estamos en un tenant
+    $isTenant = tenancy()->initialized;
+
+    if ($isTenant) {
+        // Login directo en tenant
+        $credentials = $request->only('email', 'password');
+        if (!Auth::attempt($credentials, $request->boolean('remember'))) {
+            throw ValidationException::withMessages([
+                'email' => 'Credenciales incorrectas.',
             ]);
-            
-            // Redirect to tenant login with form data
-            $redirectUrl = "https://{$domain->domain}/login?" . http_build_query([
-                'email' => $request->email,
-                'remember' => $request->boolean('remember') ? '1' : '0'
-            ]);
-            
-            return redirect()->away($redirectUrl);
         }
-        
-        // We're in tenant context, proceed with normal authentication
-        $request->authenticate();
 
         $request->session()->regenerate();
 
-        // Generar token API si es necesario
+        // Crear token si no existe
         if (!$request->user()->tokens()->where('name', 'default_token')->exists()) {
             $request->user()->createToken('default_token', ['*']);
         }
 
-        // Redirect to tenant dashboard
-        return redirect()->intended('/dashboard');
+        return redirect()->route('tenant.dashboard');
     }
+
+    // 2️⃣ Login desde central, buscar tenant por RUC
+    $tenant = Tenant::whereJsonContains('data->ruc', $request->ruc)->first();
+
+    if (!$tenant || !$tenant->is_active) {
+        throw ValidationException::withMessages([
+            'ruc' => 'RUC no encontrado o empresa desactivada.',
+        ]);
+    }
+
+    // 3️⃣ Inicializar el tenant
+    tenancy()->initialize($tenant);
+
+    try {
+        // 4️⃣ Autenticar usuario en base de datos del tenant
+        $credentials = $request->only('email', 'password');
+        if (!Auth::attempt($credentials, $request->boolean('remember'))) {
+            throw ValidationException::withMessages([
+                'email' => 'Credenciales incorrectas.',
+            ]);
+        }
+
+        $request->session()->regenerate();
+
+        // 5️⃣ Crear token API si no existe
+        if (!$request->user()->tokens()->where('name', 'default_token')->exists()) {
+            $request->user()->createToken('default_token', ['*']);
+        }
+
+        // 6️⃣ Redirigir al dashboard del tenant
+        return redirect()->route('tenant.dashboard');
+    } finally {
+        // Opcional: tenancy()->end(); si quieres limpiar el contexto
+    }
+}
+
 
     /**
      * Handle admin authentication request (for superadmins).

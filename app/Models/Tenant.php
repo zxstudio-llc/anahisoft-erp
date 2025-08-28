@@ -20,7 +20,9 @@ class Tenant extends BaseTenant implements TenantWithDatabase
      */
     protected $fillable = [
         'id',
-        'name',
+        'ruc',
+        'trade_name',
+        'email',
         'subscription_plan_id',
         'trial_ends_at',
         'is_active',

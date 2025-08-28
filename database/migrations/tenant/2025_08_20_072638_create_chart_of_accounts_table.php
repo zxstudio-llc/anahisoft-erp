@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('chart_of_accounts', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('company_id')->constrained()->onDelete('cascade');
+            $table->foreignId('company_id')->nullable()->constrained()->onDelete('cascade');
             $table->string('code', 20)->unique();
             $table->string('name', 300);
             $table->string('account_type', 20); // asset, liability, equity, income, expense

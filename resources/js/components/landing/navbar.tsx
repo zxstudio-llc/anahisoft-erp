@@ -44,6 +44,12 @@ export default function Navbar() {
                     <div className="hidden sm:flex sm:items-center sm:space-x-4">
                         <ThemeToggle />
                         <Link
+                            href="/validate"
+                            className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 rounded-full transition-all duration-200"
+                        >
+                            Acceder
+                        </Link>
+                        <Link
                             href="/register"
                             className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 rounded-full transition-all duration-200"
                         >
