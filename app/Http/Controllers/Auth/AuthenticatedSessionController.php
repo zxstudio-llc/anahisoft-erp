@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Validation\ValidationException;
+use Stancl\Tenancy\Facades\Tenancy;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -22,11 +23,11 @@ class AuthenticatedSessionController extends Controller
     public function create(Request $request): Response
     {
         // Check if we're in a tenant context
-        $isTenant = app()->bound('tenancy.tenant');
+        $isTenant = tenancy()->initialized;
         $tenantData = null;
         
         if ($isTenant) {
-            $tenant = app('tenancy.tenant');
+            $tenant = tenancy()->tenant;
             $tenantData = [
                 'company_name' => $tenant->data['company_name'] ?? null,
                 'ruc' => $tenant->data['ruc'] ?? null,
@@ -34,8 +35,8 @@ class AuthenticatedSessionController extends Controller
         }
         
         // Determine which view to render based on context
-        $view = $isTenant ? 'app/auth/login' : 'auth/login';
-        
+        $view = $isTenant ? 'auth/domain-login' : 'auth/login';
+    
         return Inertia::render($view, [
             'canResetPassword' => Route::has('password.request'),
             'status' => $request->session()->get('status'),
@@ -55,12 +56,34 @@ class AuthenticatedSessionController extends Controller
     }
 
     /**
+     * Show the Tenant login page (for Tenant).
+     */
+    public function createTenant(Request $request): Response
+    {
+        // Asegurarse de que estamos en contexto tenant
+        if (!tenancy()->initialized) {
+            abort(404);
+        }
+
+        $tenant = tenancy()->tenant;
+
+        return Inertia::render('auth/domain-login', [
+            'canResetPassword' => Route::has('password.request'),
+            'status' => $request->session()->get('status'),
+            'tenantData' => [
+                'company_name' => $tenant->data['company_name'] ?? null,
+                'ruc' => $tenant->data['ruc'] ?? null,
+            ],
+        ]);
+    }
+
+    /**
      * Handle an incoming authentication request.
      */
     public function store(LoginRequest $request): RedirectResponse
     {
         // First, check if we're already in a tenant context
-        $isTenant = app()->bound('tenancy.tenant');
+        $isTenant = tenancy()->initialized;
         
         if (!$isTenant) {
             // We're in the central domain, need to find tenant by RUC and redirect

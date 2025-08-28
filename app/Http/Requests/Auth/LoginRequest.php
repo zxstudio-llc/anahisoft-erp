@@ -27,7 +27,7 @@ class LoginRequest extends FormRequest
     public function rules(): array
     {
         // Check if we're in a tenant context
-        $isTenant = app()->bound('tenancy.tenant');
+        $isTenant = tenancy()->initialized;
         
         $rules = [
             'email' => ['required', 'string', 'email'],
@@ -52,11 +52,11 @@ class LoginRequest extends FormRequest
         $this->ensureIsNotRateLimited();
 
         // Verificar si estamos en un contexto de tenant o en central
-        $isTenant = app()->bound('tenancy.tenant');
+        $isTenant = tenancy()->initialized;
         
         // Si estamos en un tenant, asegurarse de que el usuario pertenece a este tenant
         if ($isTenant) {
-            $tenant = app('tenancy.tenant');
+            $tenant = tenancy()->tenant;
             
             // Intentar autenticar con tenant_id
             if (! Auth::attempt(array_merge(
@@ -121,6 +121,6 @@ class LoginRequest extends FormRequest
      */
     public function throttleKey(): string
     {
-        return Str::transliterate(Str::lower($this->string('email')).'|'.$this->ip());
+        return Str::transliterate(Str::lower($this->input('email')).'|'.$this->ip());
     }
 }

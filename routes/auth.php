@@ -21,6 +21,9 @@ Route::middleware('guest')->group(function () {
 
     Route::post('login', [AuthenticatedSessionController::class, 'store']);
 
+    Route::get('customer/login', [AuthenticatedSessionController::class, 'createTenant'])
+        ->name('tenant.login');
+
     Route::get('forgot-password', [PasswordResetLinkController::class, 'create'])
         ->name('password.request');
 

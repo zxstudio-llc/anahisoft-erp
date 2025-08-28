@@ -10,13 +10,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AuthSplitLayout from '@/layouts/auth/auth-split-layout';
 
-type LoginForm = {
+type DomainLoginForm = {
     email: string;
     password: string;
     remember: boolean;
 };
 
-interface LoginProps {
+interface DomainLoginProps {
     status?: string;
     canResetPassword: boolean;
     tenantData?: {
@@ -25,8 +25,8 @@ interface LoginProps {
     };
 }
 
-export default function Login({ status, canResetPassword, tenantData }: LoginProps) {
-    const { data, setData, post, processing, errors, reset } = useForm<Required<LoginForm>>({
+export default function DomainLogin({ status, canResetPassword, tenantData }: DomainLoginProps) {
+    const { data, setData, post, processing, errors, reset } = useForm<Required<DomainLoginForm>>({
         email: '',
         password: '',
         remember: false,
