@@ -8,6 +8,7 @@ use Stancl\Tenancy\Middleware\InitializeTenancyByDomain;
 use Stancl\Tenancy\Middleware\PreventAccessFromCentralDomains;
 use App\Http\Controllers\Tenant\Api\CategoryController;
 use App\Http\Controllers\Tenant\Api\ClientController;
+use App\Http\Controllers\Tenant\Api\CustomerController;
 use App\Http\Controllers\Tenant\Api\ProductController;
 use App\Http\Controllers\Tenant\Api\InvoiceController;
 use App\Http\Services\Tenant\ValidateDocument;
@@ -76,6 +77,7 @@ Route::middleware([
 
         // Rutas de clientes
         Route::apiResource('clients', ClientController::class);
+        Route::apiResource('customer', CustomerController::class);
 
         // Rutas de productos
         Route::get('products/next-code', [ProductController::class, 'nextCode']);

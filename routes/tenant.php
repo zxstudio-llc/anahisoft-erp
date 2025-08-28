@@ -268,11 +268,19 @@ Route::middleware([
 
 
         // pruebas endpoint
-        Route::resource('customers', CustomersController::class);
-        Route::resource('chart-of-accounts', ChartOfAccountsController::class, ['as' => 'tenant']);
-        Route::post('chart-of-accounts/import', [ChartOfAccountsController::class, 'import'])
-            ->name('tenant.chart-of-accounts.import');
+        Route::resource('customers', CustomersController::class, ['as' => 'tenant']);
 
+        Route::prefix('chart-of-accounts')->name('tenant.chart-of-accounts.')->group(function () {
+            Route::get('/', [ChartOfAccountsController::class, 'index'])->name('index');
+            Route::get('/create', [ChartOfAccountsController::class, 'create'])->name('create');
+            Route::post('/', [ChartOfAccountsController::class, 'store'])->name('store');
+            Route::get('/{chartOfAccount}/edit', [ChartOfAccountsController::class, 'edit'])->name('edit');
+            Route::put('/{chartOfAccount}', [ChartOfAccountsController::class, 'update'])->name('update');
+            Route::delete('/{chartOfAccount}', [ChartOfAccountsController::class, 'destroy'])->name('destroy');
+            
+            // Ruta específica para importación
+            Route::post('/import', [ChartOfAccountsController::class, 'import'])->name('import');
+        });
         
         Route::resource('suppliers', SupplierController::class);
         Route::resource('products', ProductsController::class);

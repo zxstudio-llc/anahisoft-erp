@@ -41,7 +41,17 @@ class CustomersController extends Controller
      */
     public function create()
     {
-        return Inertia::render('Tenant/Customers/Create');
+        $documentTypes = [
+            ['value' => '01', 'label' => 'Cédula'],
+            ['value' => '04', 'label' => 'RUC'],
+            ['value' => '06', 'label' => 'Pasaporte'],
+            ['value' => '07', 'label' => 'Consumidor final'],
+            ['value' => '08', 'label' => 'Identificación del exterior'],
+        ];
+
+        return Inertia::render('Tenant/Customers/Create', [
+            'document_types' => $documentTypes,
+        ]);
     }
 
     /**
@@ -55,7 +65,7 @@ class CustomersController extends Controller
         Customer::create($data);
 
         return redirect()->route('customers.index')
-            ->with('success', 'Customer created successfully');
+            ->with('success', 'Cliente creado correctamente');
     }
 
     /**
@@ -81,8 +91,17 @@ class CustomersController extends Controller
     {
         $this->authorize('update', $customer);
 
+        $documentTypes = [
+            ['value' => '01', 'label' => 'Cédula'],
+            ['value' => '04', 'label' => 'RUC'],
+            ['value' => '06', 'label' => 'Pasaporte'],
+            ['value' => '07', 'label' => 'Consumidor final'],
+            ['value' => '08', 'label' => 'Identificación del exterior'],
+        ];
+
         return Inertia::render('Tenant/Customers/Edit', [
-            'customer' => $customer
+            'customer' => $customer,
+            'document_types' => $documentTypes,
         ]);
     }
 
@@ -96,7 +115,7 @@ class CustomersController extends Controller
         $customer->update($request->validated());
 
         return redirect()->route('customers.index')
-            ->with('success', 'Customer updated successfully');
+            ->with('success', 'Cliente actualizado correctamente');
     }
 
     /**
@@ -109,6 +128,6 @@ class CustomersController extends Controller
         $customer->delete();
 
         return redirect()->route('customers.index')
-            ->with('success', 'Customer deleted successfully');
+            ->with('success', 'Cliente eliminado correctamente');
     }
 }

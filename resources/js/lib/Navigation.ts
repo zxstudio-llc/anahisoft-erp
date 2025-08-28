@@ -180,14 +180,14 @@ export const tenantNavItems: NavItem[] = [
         subItems: [
             {
                 title: 'Clientes',
-                href: route('tenant.clients.index'),
+                href: route('tenant.customers.index'),
                 icon: Users,
             },
-            {
-                title: 'ClientesNuevos',
-                href: route('customers.index'),
-                icon: Users,
-            },
+            // {
+            //     title: 'ClientesNuevos',
+            //     href: route('customers.index'),
+            //     icon: Users,
+            // },
             {
                 title: 'Ventas',
                 href: route('tenant.sales.index'),

@@ -40,16 +40,43 @@ class ChartOfAccountsController extends Controller
     }
 
     public function import(Request $request)
-{
-    $request->validate([
-        'file' => 'required|file|mimes:xlsx,xls,csv',
-    ]);
-
-    Excel::import(new ChartOfAccountsImport, $request->file('file'));
-
-    return redirect()->route('tenant.chart-of-accounts.index')
-                     ->with('success', 'Plan de cuentas importado correctamente.');
-}
+    {
+        try {
+            $request->validate([
+                'file' => 'required|file|mimes:xlsx,xls,csv|max:2048', // Max 2MB
+            ]);
+    
+            // Log para debugging
+            \Log::info('Iniciando importación de plan de cuentas', [
+                'file_name' => $request->file('file')->getClientOriginalName(),
+                'file_size' => $request->file('file')->getSize(),
+                'mime_type' => $request->file('file')->getMimeType(),
+            ]);
+    
+            Excel::import(new ChartOfAccountsImport, $request->file('file'));
+    
+            \Log::info('Importación de plan de cuentas completada exitosamente');
+    
+            return redirect()->route('tenant.chart-of-accounts.index')
+                             ->with('success', 'Plan de cuentas importado correctamente.');
+    
+        } catch (\Maatwebsite\Excel\Validators\ValidationException $e) {
+            \Log::error('Error de validación en importación:', [
+                'failures' => $e->failures()
+            ]);
+            
+            return redirect()->back()
+                             ->withErrors(['file' => 'Error en la validación del archivo: ' . $e->getMessage()]);
+        } catch (\Exception $e) {
+            \Log::error('Error general en importación:', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return redirect()->back()
+                             ->withErrors(['file' => 'Error al procesar el archivo: ' . $e->getMessage()]);
+        }
+    }
 
     /**
      * Mostrar formulario de creación
