@@ -347,13 +347,37 @@ class RegisteredUserController extends Controller
         Log::info('=== PREPARANDO RESPUESTA ===');
         Log::info('URL de redirección:', ['redirect_url' => $redirectUrl]);
         
-        // Si es una petición AJAX (Inertia), retornar JSON
-        if ($request->wantsJson() || $request->header('X-Inertia')) {
+        // Para peticiones Inertia, retornar con datos en props
+        if ($request->header('X-Inertia')) {
+            Log::info('Retornando respuesta Inertia con redirect');
+            return back()->with([
+                'success' => true,
+                'redirect' => $redirectUrl,
+                'message' => 'Cuenta creada exitosamente',
+                'tenant_data' => [
+                    'id' => $tenant->id,
+                    'subscription_plan_id' => $tenant->subscription_plan_id,
+                    'billing_period' => $tenant->billing_period,
+                    'subscription_active' => $tenant->subscription_active,
+                    'trial_ends_at' => $tenant->trial_ends_at,
+                    'subscription_ends_at' => $tenant->subscription_ends_at,
+                ],
+                'subscription_data' => [
+                    'id' => $subscription->id,
+                    'tenant_id' => $subscription->tenant_id,
+                    'name' => $subscription->name,
+                    'ends_at' => $subscription->ends_at,
+                    'subscription_plan_id' => $subscription->subscription_plan_id,
+                ]
+            ]);
+        }
+        
+        // Para peticiones AJAX normales, retornar JSON
+        if ($request->wantsJson()) {
             $responseData = [
                 'success' => true,
                 'redirect' => $redirectUrl,
                 'message' => 'Cuenta creada exitosamente',
-                // ✅ DATOS ADICIONALES PARA DEBUG
                 'tenant_data' => [
                     'id' => $tenant->id,
                     'subscription_plan_id' => $tenant->subscription_plan_id,

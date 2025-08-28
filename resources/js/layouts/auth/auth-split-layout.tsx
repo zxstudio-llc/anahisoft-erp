@@ -1,6 +1,6 @@
 import AppLogoIcon from '@/components/app-logo-icon';
 import { type SharedData } from '@/types';
-import { Link, usePage } from '@inertiajs/react';
+import { Link, usePage, Head } from '@inertiajs/react';
 import { type PropsWithChildren } from 'react';
 import CookieConsent from '@/components/cookie-consent';
 import { cn } from '@/lib/utils';
@@ -15,7 +15,11 @@ export default function AuthSplitLayout({ children, title, description, backgrou
     const { name, quote } = usePage<SharedData>().props;
 
     return (
-        <div className="relative grid h-screen grid-cols-1 lg:grid-cols-2">
+        <>
+            <Head>
+                <meta name="csrf-token" content={document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''} />
+            </Head>
+            <div className="relative grid h-screen grid-cols-1 lg:grid-cols-2">
             {/* Panel izquierdo con imagen de fondo y contenido */}
             <div className="relative hidden h-full flex-col overflow-hidden bg-muted lg:flex dark:border-r">
                 {/* Fondo con efecto de gradiente y superposición */}
@@ -111,5 +115,6 @@ export default function AuthSplitLayout({ children, title, description, backgrou
             {/* Banner de cookies */}
             <CookieConsent />
         </div>
+        </>
     );
 }

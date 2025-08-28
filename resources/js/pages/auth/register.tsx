@@ -317,49 +317,18 @@ export default function Register({ freePlan, selectedPlan, app_domain, billing_p
         const formData = {
             ...data,
             payment_id: paymentId,
-            // Asegurar que el RUC esté presente
-            ruc: data.ruc,
-            // Asegurar que los campos básicos estén presentes
-            company_name: data.company_name,
-            domain: data.domain,
-            plan_id: data.plan_id,
-            billing_period: data.billing_period,
-            // Campos de usuario
-            name: data.name,
-            email: data.email,
-            password: data.password,
-            password_confirmation: data.password_confirmation,
         };
         
         console.log('Datos del formulario:', formData);
-    
-        try {
-            // Show loading state immediately
-            const loadingToast = toast.loading('Creando su cuenta y configurando su sistema...');
-            
-            console.log('Enviando petición de registro...');
-            
-            // Usar Axios directamente para tener más control
-            const response = await axios.post(route('register'), formData, {
-                headers: {
-                    'Accept': 'application/json',
-                    'Content-Type': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
-                }
-            });
-    
-            console.log('Respuesta recibida:', response);
-            
-            // Dismiss loading toast
-            toast.dismiss(loadingToast);
-    
-            if (response.data.success) {
+        
+        // Usar el formulario nativo de Inertia
+        post(route('register'), formData, {
+            onSuccess: (response) => {
                 console.log('Registro exitoso, redirigiendo...');
-                toast.success(response.data.message || 'Cuenta creada exitosamente');
+                toast.success('Cuenta creada exitosamente');
                 
                 // Usar la URL de redirección del servidor
-                const redirectUrl = response.data.redirect || `https://${data.domain}.${app_domain}/login`;
+                const redirectUrl = response?.props?.redirect || `https://${data.domain}.${app_domain}/login`;
                 
                 console.log('URL de redirección:', redirectUrl);
                 
@@ -373,39 +342,21 @@ export default function Register({ freePlan, selectedPlan, app_domain, billing_p
                     console.log('Redirigiendo a:', redirectUrl);
                     window.location.href = redirectUrl;
                 }, 2000);
-            } else {
-                console.error('Registro falló - respuesta no exitosa:', response.data);
-                toast.error(response.data.message || 'Error al crear la cuenta');
-            }
-        } catch (error) {
-            console.error('=== ERROR EN REGISTRO FRONTEND ===');
-            console.error('Error completo:', error);
-            console.error('Respuesta del error:', error.response?.data);
-            console.error('Status del error:', error.response?.status);
-            console.error('Headers del error:', error.response?.headers);
-            
-            if (error.response && error.response.data) {
-                const errorData = error.response.data;
+            },
+            onError: (errors) => {
+                console.error('Registro falló - errores de validación:', errors);
                 
-                if (errorData.errors) {
-                    console.error('Errores de validación:', errorData.errors);
-                    Object.keys(errorData.errors).forEach((key) => {
-                        if (errorData.errors[key]) {
-                            toast.error(Array.isArray(errorData.errors[key]) ? errorData.errors[key][0] : errorData.errors[key]);
+                if (errors) {
+                    Object.keys(errors).forEach((key) => {
+                        if (errors[key]) {
+                            toast.error(Array.isArray(errors[key]) ? errors[key][0] : errors[key]);
                         }
                     });
-                } else if (errorData.message) {
-                    console.error('Mensaje de error:', errorData.message);
-                    toast.error(errorData.message);
                 } else {
-                    console.error('Error sin mensaje específico');
                     toast.error('Error al crear la cuenta. Por favor intente nuevamente.');
                 }
-            } else {
-                console.error('Error sin respuesta del servidor');
-                toast.error('Error de conexión. Por favor intente nuevamente.');
             }
-        }
+        });
     };
 
     const handlePaymentSuccess = (paymentId: string) => {
@@ -1028,6 +979,29 @@ export default function Register({ freePlan, selectedPlan, app_domain, billing_p
                     ¿Ya tienes una cuenta? <TextLink href={route('login')}>Iniciar sesión</TextLink>
                 </div>
             </form>
+
+            {/* Formulario oculto para Inertia */}
+            <form 
+                ref={(form) => {
+                    if (form) {
+                        // Configurar el formulario para Inertia
+                        form.action = route('register');
+                        form.method = 'POST';
+                        
+                        // Agregar campos ocultos
+                        Object.keys(data).forEach(key => {
+                            if (data[key] !== undefined && data[key] !== null && data[key] !== '') {
+                                const input = document.createElement('input');
+                                input.type = 'hidden';
+                                input.name = key;
+                                input.value = Array.isArray(data[key]) ? JSON.stringify(data[key]) : data[key];
+                                form.appendChild(input);
+                            }
+                        });
+                    }
+                }}
+                style={{ display: 'none' }}
+            />
 
             <PaymentModal
                 isOpen={showPaymentModal}
