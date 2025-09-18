@@ -1,4 +1,4 @@
-import { Category, Currency, IgvType, Product, ProductsResponse, UnitType } from '@/common/interfaces/tenant/products.interface';
+import { Category, Product, ProductsResponse, UnitType } from '@/common/interfaces/tenant/products.interface';
 import ProductModal from '@/components/tenants/create-product-modal';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -14,7 +14,6 @@ export default function Index() {
     const [products, setProducts] = useState<Product[]>([]);
     const [categories, setCategories] = useState<Category[]>([]);
     const [unitTypes, setUnitTypes] = useState<UnitType[]>([]);
-    const [igvTypes, setIgvTypes] = useState<IgvType[]>([]);
     const [currencies, setCurrencies] = useState<Currency[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -46,7 +45,6 @@ export default function Index() {
             setTotalProducts(responseData.data.products.total);
             setCategories(responseData.data.categories || []);
             setUnitTypes(responseData.data.unit_types || []);
-            setIgvTypes(responseData.data.igv_types || []);
             setCurrencies(responseData.data.currencies || []);
         } catch (error) {
             console.error('Error al cargar productos:', error);
@@ -296,7 +294,7 @@ export default function Index() {
                                                         <Package className="h-5 w-5 text-muted-foreground" />
                                                         {product.name}
                                                     </td>
-                                                    <td className="px-4 py-3">S/ {Number(product.price).toFixed(2)}</td>
+                                                    <td className="px-4 py-3">$ {Number(product.price).toFixed(2)}</td>
                                                     <td className="px-4 py-3">
                                                         <span
                                                             className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
@@ -354,7 +352,6 @@ export default function Index() {
                 onClose={closeModal}
                 categories={categories}
                 unitTypes={unitTypes}
-                igvTypes={igvTypes}
                 currencies={currencies}
                 product={selectedProduct}
                 onSuccess={handleProductSuccess}

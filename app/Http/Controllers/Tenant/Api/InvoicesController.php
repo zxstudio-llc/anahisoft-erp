@@ -8,7 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use App\Models\Tenant\Invoice;
 
-class InvoiceController extends Controller
+class InvoicesController extends Controller
 {
     protected InvoiceService $invoiceService;
 
@@ -71,11 +71,11 @@ class InvoiceController extends Controller
 
         // Validar los datos de la factura
         $validator = Validator::make($request->all(), [
-            'client_id' => 'required|exists:clients,id',
-            'items' => 'required|array|min:1',
-            'items.*.product_id' => 'required|exists:products,id',
-            'items.*.quantity' => 'required|numeric|min:0.01',
-            'items.*.price' => 'required|numeric|min:0',
+            'client_id' => 'required|exists:customers,id',
+            'details' => 'required|array|min:1',
+            'details.*.product_id' => 'required|exists:products,id',
+            'details.*.quantity' => 'required|numeric|min:0.01',
+            'details.*.price' => 'required|numeric|min:0',
         ]);
         
         if ($validator->fails()) {
@@ -193,7 +193,7 @@ class InvoiceController extends Controller
         if (!empty($search)) {
             $query->where(function($q) use ($search) {
                 $q->where('number', 'like', "%{$search}%")
-                  ->orWhereHas('client', function($q) use ($search) {
+                  ->orWhereHas('customer', function($q) use ($search) {
                       $q->where('name', 'like', "%{$search}%")
                         ->orWhere('document_number', 'like', "%{$search}%");
                   });
@@ -216,7 +216,7 @@ class InvoiceController extends Controller
         $query->orderBy($sortField, $sortOrder);
         
         // Paginación
-        $invoices = $query->with(['client', 'items.product'])->paginate($perPage)->withQueryString();
+        $invoices = $query->with(['customer', 'details.product'])->paginate($perPage)->withQueryString();
         
         return response()->json([
             'success' => true,
@@ -238,7 +238,7 @@ class InvoiceController extends Controller
      */
     public function show($id)
     {
-        $invoice = Invoice::with(['client', 'items.product'])->find($id);
+        $invoice = Invoice::with(['customer', 'details.product'])->find($id);
         
         if (!$invoice) {
             return response()->json([
@@ -259,12 +259,12 @@ class InvoiceController extends Controller
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'client_id' => 'required|exists:clients,id',
+            'client_id' => 'required|exists:customers,id',
             'date' => 'required|date',
-            'items' => 'required|array|min:1',
-            'items.*.product_id' => 'required|exists:products,id',
-            'items.*.quantity' => 'required|numeric|min:1',
-            'items.*.price' => 'required|numeric|min:0',
+            'details' => 'required|array|min:1',
+            'details.*.product_id' => 'required|exists:products,id',
+            'details.*.quantity' => 'required|numeric|min:1',
+            'details.*.price' => 'required|numeric|min:0',
         ]);
         
         if ($validator->fails()) {
@@ -277,7 +277,7 @@ class InvoiceController extends Controller
         
         try {
             $invoice = Invoice::create([
-                'client_id' => $request->client_id,
+                'client_id' => $request->customer_id,
                 'date' => $request->date,
                 'status' => 'draft',
                 'total' => 0,
@@ -300,7 +300,7 @@ class InvoiceController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Factura creada correctamente',
-                'data' => $invoice->load(['client', 'items.product'])
+                'data' => $invoice->load(['customer', 'details.product'])
             ], 201);
         } catch (\Exception $e) {
             return response()->json([
@@ -333,12 +333,12 @@ class InvoiceController extends Controller
         }
         
         $validator = Validator::make($request->all(), [
-            'client_id' => 'required|exists:clients,id',
+            'client_id' => 'required|exists:customers,id',
             'date' => 'required|date',
-            'items' => 'required|array|min:1',
-            'items.*.product_id' => 'required|exists:products,id',
-            'items.*.quantity' => 'required|numeric|min:1',
-            'items.*.price' => 'required|numeric|min:0',
+            'details' => 'required|array|min:1',
+            'details.*.product_id' => 'required|exists:products,id',
+            'details.*.quantity' => 'required|numeric|min:1',
+            'details.*.price' => 'required|numeric|min:0',
         ]);
         
         if ($validator->fails()) {
@@ -351,7 +351,7 @@ class InvoiceController extends Controller
         
         try {
             $invoice->update([
-                'client_id' => $request->client_id,
+                'client_id' => $request->customer_id,
                 'date' => $request->date,
             ]);
             
@@ -376,7 +376,7 @@ class InvoiceController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Factura actualizada correctamente',
-                'data' => $invoice->load(['client', 'items.product'])
+                'data' => $invoice->load(['customer', 'details.product'])
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -457,7 +457,7 @@ class InvoiceController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Estado de factura actualizado correctamente',
-                'data' => $invoice->load(['client', 'items.product'])
+                'data' => $invoice->load(['customer', 'details.product'])
             ]);
         } catch (\Exception $e) {
             return response()->json([

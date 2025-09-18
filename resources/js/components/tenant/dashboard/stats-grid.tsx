@@ -1,99 +1,168 @@
-import { Card } from '@/components/ui/card';
-import { Icon } from '@/components/ui/icon';
-import { formatCurrency } from '@/lib/utils';
+import { IconTrendingDown, IconTrendingUp } from "@tabler/icons-react"
+import { Badge } from "@/components/ui/badge"
+import {
+    Card,
+    CardAction,
+    CardContent,
+    CardDescription,
+    CardFooter,
+    CardHeader,
+    CardTitle,
+} from "@/components/ui/card"
+import { formatCurrency } from "@/lib/utils"
 
 interface StatsGridProps {
     stats: {
         sales: {
-            current: number;
-            previous: number;
-            change: number;
-        };
-        clients: {
-            total: number;
-            new: number;
-            change: number;
-        };
+            current: number
+            previous: number
+            change: number
+        }
+        customers: {  // Cambio: 'customer' -> 'customers'
+            total: number
+            new: number
+            change: number
+        }
         products: {
-            total: number;
-            new: number;
-            change: number;
-        };
+            total: number
+            new: number
+            change: number
+        }
         invoices: {
-            total: number;
-            pending: number;
-            paid: number;
-            change: number;
-        };
-    };
+            total: number
+            pending: number
+            paid: number
+            change: number
+        }
+    }
 }
 
 export function StatsGrid({ stats }: StatsGridProps) {
     return (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <Card className="p-6">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <p className="text-sm font-medium text-muted-foreground">Ventas del mes</p>
-                        <h3 className="mt-2 text-3xl font-semibold">{formatCurrency(stats.sales.current)}</h3>
+        <div className="*:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card grid grid-cols-1 gap-4 px-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:shadow-xs lg:px-6 @xl/main:grid-cols-2 @5xl/main:grid-cols-4">
+            {/* Ventas */}
+            <Card className="@container/card">
+                <CardHeader>
+                    <CardDescription>Ventas del mes</CardDescription>
+                    <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
+                        {formatCurrency(stats.sales.current)}
+                    </CardTitle>
+                    <CardAction>
+                        <Badge variant="outline">
+                            {stats.sales.change >= 0 ? <IconTrendingUp /> : <IconTrendingDown />}
+                            {stats.sales.change >= 0 ? "+" : "-"}
+                            {Math.abs(stats.sales.change).toFixed(1)}%
+                        </Badge>
+                    </CardAction>
+                </CardHeader>
+                <CardFooter className="flex-col items-start gap-1.5 text-sm">
+                    <div className="flex gap-2 font-medium">
+                        {stats.sales.change >= 0 ? "Crecimiento este mes" : "Disminución este mes"}
+                        {stats.sales.change >= 0 ? (
+                            <IconTrendingUp className="size-4" />
+                        ) : (
+                            <IconTrendingDown className="size-4" />
+                        )}
                     </div>
-                    <div className={`flex items-center gap-1 text-sm ${stats.sales.change >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        <Icon name={stats.sales.change >= 0 ? 'trending-up' : 'trending-down'} className="h-4 w-4" />
-                        <span>{Math.abs(stats.sales.change).toFixed(1)}%</span>
+                    <div className="text-muted-foreground">
+                        vs. {formatCurrency(stats.sales.previous)} mes anterior
                     </div>
-                </div>
-                <p className="mt-2 text-sm text-muted-foreground">
-                    vs. {formatCurrency(stats.sales.previous)} mes anterior
-                </p>
+                </CardFooter>
             </Card>
 
-            <Card className="p-6">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <p className="text-sm font-medium text-muted-foreground">Clientes</p>
-                        <h3 className="mt-2 text-3xl font-semibold">{stats.clients.total}</h3>
+            {/* Clientes */}
+            <Card className="@container/card">
+                <CardHeader>
+                    <CardDescription>Clientes</CardDescription>
+                    <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
+                        {stats.customers.total} {/* Cambio: 'customer' -> 'customers' */}
+                    </CardTitle>
+                    <CardAction>
+                        <Badge variant="outline">
+                            {stats.customers.change >= 0 ? <IconTrendingUp /> : <IconTrendingDown />}
+                            {stats.customers.change >= 0 ? "+" : "-"}
+                            {Math.abs(stats.customers.change).toFixed(1)}%
+                        </Badge>
+                    </CardAction>
+                </CardHeader>
+                <CardFooter className="flex-col items-start gap-1.5 text-sm">
+                    <div className="flex gap-2 font-medium">
+                        {stats.customers.change >= 0 ? "Clientes en aumento" : "Clientes en descenso"}
+                        {stats.customers.change >= 0 ? (
+                            <IconTrendingUp className="size-4" />
+                        ) : (
+                            <IconTrendingDown className="size-4" />
+                        )}
                     </div>
-                    <div className={`flex items-center gap-1 text-sm ${stats.clients.change >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        <Icon name={stats.clients.change >= 0 ? 'trending-up' : 'trending-down'} className="h-4 w-4" />
-                        <span>{Math.abs(stats.clients.change).toFixed(1)}%</span>
+                    <div className="text-muted-foreground">
+                        {stats.customers.new} nuevos este mes
                     </div>
-                </div>
-                <p className="mt-2 text-sm text-muted-foreground">
-                    {stats.clients.new} nuevos este mes
-                </p>
+                </CardFooter>
             </Card>
 
-            <Card className="p-6">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <p className="text-sm font-medium text-muted-foreground">Productos</p>
-                        <h3 className="mt-2 text-3xl font-semibold">{stats.products.total}</h3>
+            {/* Productos */}
+            <Card className="@container/card">
+                <CardHeader>
+                    <CardDescription>Productos</CardDescription>
+                    <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
+                        {stats.products.total}
+                    </CardTitle>
+                    <CardAction>
+                        <Badge variant="outline">
+                            {stats.products.change >= 0 ? <IconTrendingUp /> : <IconTrendingDown />}
+                            {stats.products.change >= 0 ? "+" : "-"}
+                            {Math.abs(stats.products.change).toFixed(1)}%
+                        </Badge>
+                    </CardAction>
+                </CardHeader>
+                <CardFooter className="flex-col items-start gap-1.5 text-sm">
+                    <div className="flex gap-2 font-medium">
+                        {stats.products.change >= 0
+                            ? "Más productos registrados"
+                            : "Menos productos registrados"}
+                        {stats.products.change >= 0 ? (
+                            <IconTrendingUp className="size-4" />
+                        ) : (
+                            <IconTrendingDown className="size-4" />
+                        )}
                     </div>
-                    <div className={`flex items-center gap-1 text-sm ${stats.products.change >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        <Icon name={stats.products.change >= 0 ? 'trending-up' : 'trending-down'} className="h-4 w-4" />
-                        <span>{Math.abs(stats.products.change).toFixed(1)}%</span>
+                    <div className="text-muted-foreground">
+                        {stats.products.new} nuevos este mes
                     </div>
-                </div>
-                <p className="mt-2 text-sm text-muted-foreground">
-                    {stats.products.new} nuevos este mes
-                </p>
+                </CardFooter>
             </Card>
 
-            <Card className="p-6">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <p className="text-sm font-medium text-muted-foreground">Facturas</p>
-                        <h3 className="mt-2 text-3xl font-semibold">{stats.invoices.total}</h3>
+            {/* Facturas */}
+            <Card className="@container/card">
+                <CardHeader>
+                    <CardDescription>Facturas</CardDescription>
+                    <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
+                        {stats.invoices.total}
+                    </CardTitle>
+                    <CardAction>
+                        <Badge variant="outline">
+                            {stats.invoices.change >= 0 ? <IconTrendingUp /> : <IconTrendingDown />}
+                            {stats.invoices.change >= 0 ? "+" : "-"}
+                            {Math.abs(stats.invoices.change).toFixed(1)}%
+                        </Badge>
+                    </CardAction>
+                </CardHeader>
+                <CardFooter className="flex-col items-start gap-1.5 text-sm">
+                    <div className="flex gap-2 font-medium">
+                        {stats.invoices.change >= 0
+                            ? "Facturación en crecimiento"
+                            : "Facturación en descenso"}
+                        {stats.invoices.change >= 0 ? (
+                            <IconTrendingUp className="size-4" />
+                        ) : (
+                            <IconTrendingDown className="size-4" />
+                        )}
                     </div>
-                    <div className={`flex items-center gap-1 text-sm ${stats.invoices.change >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        <Icon name={stats.invoices.change >= 0 ? 'trending-up' : 'trending-down'} className="h-4 w-4" />
-                        <span>{Math.abs(stats.invoices.change).toFixed(1)}%</span>
+                    <div className="text-muted-foreground">
+                        {stats.invoices.pending} pendientes, {stats.invoices.paid} pagadas
                     </div>
-                </div>
-                <p className="mt-2 text-sm text-muted-foreground">
-                    {stats.invoices.pending} pendientes, {stats.invoices.paid} pagadas
-                </p>
+                </CardFooter>
             </Card>
         </div>
-    );
-} 
+    )
+}

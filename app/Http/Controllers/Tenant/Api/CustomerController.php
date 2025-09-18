@@ -9,6 +9,41 @@ use Illuminate\Support\Facades\Validator;
 
 class CustomerController extends Controller
 {
+    public function all()
+    {
+        try {
+            // Obtener todos los customers activos ordenados por fecha de creación
+            $customers = Customer::where('active', true)
+                ->orderBy('created_at', 'desc')
+                ->get();
+
+            // Opciones de identificación
+            $identificationTypes = [
+                ['value' => '04', 'label' => 'RUC'],
+                ['value' => '05', 'label' => 'Cédula'],
+                ['value' => '06', 'label' => 'Pasaporte'],
+                ['value' => '07', 'label' => 'Consumidor Final'],
+            ];
+
+            return response()->json([
+                'success' => true,
+                'customers' => $customers,
+                'identification_types' => $identificationTypes,
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Error fetching all customers:', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al cargar los clientes'
+            ], 500);
+        }
+    }
+    
     /**
      * Listar customers
      */
@@ -16,24 +51,41 @@ class CustomerController extends Controller
     {
         $query = Customer::query();
 
-        // Obtener parámetros
-        $params = $request->input('params', []);
-        $search = $params['search'] ?? $request->input('search');
-        $identificationType = $params['identification_type'] ?? $request->input('identification_type');
-        $isActive = isset($params['active']) ? $params['active'] : $request->input('active');
-        $sortField = $params['sort_field'] ?? $request->input('sort_field', 'created_at');
-        $sortOrder = $params['sort_order'] ?? $request->input('sort_order', 'desc');
-        $perPage = $params['per_page'] ?? $request->input('per_page', 10);
+        // Obtener parámetros directamente del request (sin nested params)
+        $search = $request->input('search');
+        $identificationType = $request->input('identification_type');
+        $business_name = $request->input('business_name');
+        $trade_name = $request->input('trade_name');
+        $identification = $request->input('identification');
+        $email = $request->input('email');
+        $isActive = $request->input('active');
+        $sortField = $request->input('sort_field', 'created_at');
+        $sortOrder = $request->input('sort_order', 'desc');
+        $perPage = $request->input('per_page', 10);
+        $page = $request->input('page', 1);
+
+        // Log para debug
+        \Log::info('Customer index parameters:', [
+            'search' => $search,
+            'identification_type' => $identificationType,
+            'active' => $isActive,
+            'sort_field' => $sortField,
+            'sort_order' => $sortOrder,
+            'per_page' => $perPage,
+            'page' => $page
+        ]);
 
         // Validación de parámetros
         $validator = Validator::make([
             'sort_field' => $sortField,
             'sort_order' => $sortOrder,
             'per_page'   => $perPage,
+            'page'       => $page,
         ], [
             'sort_field' => 'in:id,business_name,trade_name,identification,email,created_at',
             'sort_order' => 'in:asc,desc',
             'per_page'   => 'integer|min:1|max:100',
+            'page'       => 'integer|min:1',
         ]);
 
         if ($validator->fails()) {
@@ -58,7 +110,7 @@ class CustomerController extends Controller
             $query->where('identification_type', $identificationType);
         }
 
-        if (isset($isActive)) {
+        if ($isActive !== null && $isActive !== '') {
             $query->where('active', filter_var($isActive, FILTER_VALIDATE_BOOLEAN));
         }
 
@@ -66,7 +118,7 @@ class CustomerController extends Controller
         $query->orderBy($sortField, $sortOrder);
 
         // Paginación
-        $customers = $query->paginate($perPage)->withQueryString();
+        $customers = $query->paginate($perPage, ['*'], 'page', $page)->withQueryString();
 
         // Opciones de identificación
         $identificationTypes = [
@@ -81,8 +133,12 @@ class CustomerController extends Controller
             'customers' => $customers,
             'filters' => [
                 'search' => $search ?? '',
+                'business_name' => $business_name ?? '',
+                'trade_name' => $trade_name ?? '',
+                'identification' => $identification ?? '',
+                'email' => $email ?? '',
                 'identification_type' => $identificationType ?? '',
-                'active' => isset($isActive) ? filter_var($isActive, FILTER_VALIDATE_BOOLEAN) : null,
+                'active' => $isActive !== null && $isActive !== '' ? filter_var($isActive, FILTER_VALIDATE_BOOLEAN) : null,
                 'sort_field' => $sortField,
                 'sort_order' => $sortOrder,
                 'per_page' => (int) $perPage,
@@ -117,14 +173,17 @@ class CustomerController extends Controller
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'company_id' => 'required|exists:companies,id',
-            'identification_type' => 'required|string|size:2',
-            'identification' => 'nullable|string|max:20',
+            'identification_type' => 'required|string|in:04,05,06,07',
+            'identification' => 'nullable|string|max:20|unique:customers,identification',
             'business_name' => 'required|string|max:300',
             'trade_name' => 'nullable|string|max:300',
             'email' => 'nullable|email|max:100',
             'phone' => 'nullable|string|max:20',
             'address' => 'nullable|string|max:300',
+            'district' => 'nullable|string|max:100',
+            'province' => 'nullable|string|max:100',
+            'department' => 'nullable|string|max:100',
+            'ubigeo' => 'nullable|string|max:20',
             'special_taxpayer' => 'boolean',
             'accounting_required' => 'boolean',
             'credit_limit' => 'numeric|min:0',
@@ -163,9 +222,8 @@ class CustomerController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
-            'company_id' => 'required|exists:companies,id',
             'identification_type' => 'required|string|size:2',
-            'identification' => 'nullable|string|max:20|unique:customers,identification,' . $customer->id . ',id,company_id,' . $customer->company_id,
+            'identification' => 'nullable|string|max:20|unique:customers,identification',
             'business_name' => 'required|string|max:300',
             'trade_name' => 'nullable|string|max:300',
             'email' => 'nullable|email|max:100',

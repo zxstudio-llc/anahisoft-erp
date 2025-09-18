@@ -12,7 +12,7 @@ class SriDocument extends Model
     use HasFactory;
 
     protected $fillable = [
-        'company_id', 'document_type', 'access_key', 'authorization_number',
+        'document_type', 'access_key', 'authorization_number',
         'status', 'xml_signed', 'sri_response', 'validation_errors',
         'sent_at', 'authorized_at', 'retry_count'
     ];
@@ -22,11 +22,6 @@ class SriDocument extends Model
         'sent_at' => 'datetime',
         'authorized_at' => 'datetime',
     ];
-
-    public function company(): BelongsTo
-    {
-        return $this->belongsTo(Company::class);
-    }
 
     public function documentable(): MorphTo
     {

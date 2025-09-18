@@ -30,7 +30,7 @@ const api: AxiosInstance = axios.create({
     baseURL: '/',
     headers: {
         'X-Requested-With': 'XMLHttpRequest',
-        'Content-Type': 'application/json',
+        // 'Content-Type': 'application/json',
         Accept: 'application/json',
     },
     withCredentials: true,
@@ -203,8 +203,8 @@ const Api = {
         return await api.get(url, { params });
     },
 
-    post: async <T>(url: string, data?: unknown): Promise<T> => {
-        return await api.post(url, data);
+    post: async <T>(url: string, data?: unknown, config = {}): Promise<T> => {
+        return await api.post(url, data, config);
     },
 
     put: async <T>(url: string, data?: unknown): Promise<T> => {

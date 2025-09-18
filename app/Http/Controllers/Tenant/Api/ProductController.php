@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Tenant\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Tenant\Category;
-use App\Models\Tenant\Product;
+use App\Models\Tenant\Products;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
@@ -18,7 +18,7 @@ class ProductController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Product::with('category');
+        $query = Products::with('category');
 
         // Obtener parámetros desde params[] o directamente
         $params = $request->input('params', []);
@@ -94,7 +94,6 @@ class ProductController extends Controller
             ],
             'categories' => $categories,
             'unit_types' => $unitTypes,
-            'igv_types' => $igvTypes,
             'currencies' => $currencies,
         ]);
     }
@@ -106,7 +105,7 @@ class ProductController extends Controller
      */
     public function show($id)
     {
-        $product = Product::with('category')->find($id);
+        $product = Products::with('category')->find($id);
 
         if (!$product) {
             return response()->json([
@@ -135,21 +134,25 @@ class ProductController extends Controller
             'price' => 'required|numeric|min:0',
             'cost' => 'nullable|numeric|min:0',
             'stock' => 'required_if:item_type,product|integer|min:0',
+            'min_stock' => 'required_if:item_type,product|integer|min:0',
+            'track_inventory' => 'boolean',
+            'vat_rate' => 'required|numeric|min:0',
+            'ice_rate' => 'nullable|numeric|min:0',
+            'irbpnr_rate' => 'nullable|numeric|min:0',
+            'sku' => 'nullable|string|min:0',
             'unit_type' => 'required|string|max:4',
-            'currency' => 'required|string|size:3',
-            'igv_type' => 'required|string|size:2',
-            'igv_percentage' => 'required|numeric|min:0|max:100',
             'has_igv' => 'required|boolean',
             'category_id' => 'nullable|exists:categories,id',
             'brand' => 'nullable|string|max:100',
             'model' => 'nullable|string|max:100',
             'barcode' => 'nullable|string|max:100',
+            'active' => 'boolean',
         ]);
 
         try {
             DB::beginTransaction();
 
-            $product = Product::create($validated);
+            $product = Products::create($validated);
 
             DB::commit();
 
@@ -172,7 +175,7 @@ class ProductController extends Controller
     /**
      * Actualiza un producto
      */
-    public function update(Request $request, Product $product)
+    public function update(Request $request, Products $product)
     {
         $validated = $request->validate([
             'code' => 'required|string|max:50|unique:products,code,' . $product->id,
@@ -183,16 +186,18 @@ class ProductController extends Controller
             'price' => 'required|numeric|min:0',
             'cost' => 'nullable|numeric|min:0',
             'stock' => 'required_if:item_type,product|integer|min:0',
+            'min_stock' => 'required_if:item_type,product|integer|min:0',
+            'track_inventory' => 'boolean',
+            'vat_rate' => 'required|numeric|min:0',
+            'ice_rate' => 'nullable|numeric|min:0',
+            'irbpnr_rate' => 'nullable|numeric|min:0',
+            'sku' => 'nullable|string|min:0',
             'unit_type' => 'required|string|max:4',
-            'currency' => 'required|string|size:3',
-            'igv_type' => 'required|string|size:2',
-            'igv_percentage' => 'required|numeric|min:0|max:100',
             'has_igv' => 'required|boolean',
             'category_id' => 'nullable|exists:categories,id',
             'brand' => 'nullable|string|max:100',
             'model' => 'nullable|string|max:100',
-            'barcode' => 'nullable|string|max:100',
-            'is_active' => 'boolean',
+            'active' => 'boolean',
         ]);
 
         try {
@@ -220,7 +225,7 @@ class ProductController extends Controller
     /**
      * Elimina un producto
      */
-    public function destroy(Product $product)
+    public function destroy(Products $product)
     {
         try {
             

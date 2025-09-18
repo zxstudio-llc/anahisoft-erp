@@ -5,25 +5,37 @@ export interface Product {
     description: string | null;
     item_type: 'product' | 'service';
     unit_price: number;
-    price: number;
+    price: number; // incluye IVA si has_igv = true
     cost: number;
     stock: number;
     unit_type: string;
-    currency: string;
-    igv_type: string;
-    igv_percentage: number;
+    vat_rate: '0' | '1';
+    ice_rate: string;
+    irbpnr_rate: string;
+    vat_percentage: number; // calculado según vat_rate
     has_igv: boolean;
     category_id: number | null;
+    category?: { id: number; name: string };
     brand: string | null;
     model: string | null;
     barcode: string | null;
-    is_active: boolean;
+    sku: string | null;
+    min_stock: number;
+    track_inventory: boolean;
+    active: boolean;
     created_at: string;
     updated_at: string;
-    category?: {
-        id: number;
-        name: string;
-    };
+}
+
+export interface ProductLight {
+    id: number;
+    code: string;
+    name: string;
+    price: number;
+    stock: number;
+    active: boolean;
+    created_at: string;
+    updated_at: string;
 }
 
 export interface Category {
@@ -36,12 +48,7 @@ export interface UnitType {
     label: string;
 }
 
-export interface IgvType {
-    value: string;
-    label: string;
-}
-
-export interface Currency {
+export interface VatType {
     value: string;
     label: string;
 }
@@ -71,15 +78,14 @@ export interface ProductsResponse {
     filters: {
         search: string | null;
         category_id: string | null;
-        is_active: boolean;
+        active: boolean;
         sort_field: string;
         sort_order: 'asc' | 'desc';
         per_page: number;
     };
     categories: Category[];
     unit_types: UnitType[];
-    igv_types: IgvType[];
-    currencies: Currency[];
+    vat_types: VatType[];
 }
 
 export interface ProductModalProps {
@@ -87,8 +93,7 @@ export interface ProductModalProps {
     onClose: () => void;
     categories: Category[];
     unitTypes: UnitType[];
-    igvTypes: IgvType[];
-    currencies: Currency[];
+    vatTypes: VatType[];
     product?: Product;
     onSuccess?: (product: Product, isEdit?: boolean) => void;
 }
@@ -102,16 +107,19 @@ export interface ProductFormData {
     price: number;
     cost: number;
     stock: number;
+    min_stock: number;
+    track_inventory: boolean;
     unit_type: string;
-    currency: string;
-    igv_type: string;
-    igv_percentage: number;
+    vat_rate: '0' | '1';
+    ice_rate: string;
+    irbpnr_rate: string;
     has_igv: boolean;
     category_id: string;
     brand: string;
     model: string;
     barcode: string;
-    is_active: boolean;
+    sku: string;
+    active: boolean;
     [key: string]: string | number | boolean;
 }
 

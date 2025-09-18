@@ -118,7 +118,7 @@ export default function AdminLogin({ status, canResetPassword }: AdminLoginProps
                 </div>
 
                 <div className="text-center text-sm text-muted-foreground">
-                    <TextLink href={route('login')} tabIndex={6}>
+                    <TextLink href={route('validate')} tabIndex={6}>
                         ← Volver al login principal
                     </TextLink>
                 </div>

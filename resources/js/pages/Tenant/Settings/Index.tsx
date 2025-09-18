@@ -12,45 +12,62 @@ import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
 import { useForm } from '@inertiajs/react';
 import { toast } from 'sonner';
 import { useState, useEffect } from 'react';
-import { CheckCircle, XCircle, Upload, TestTube, Shield, Settings, FileText, Printer, X, Save, RotateCcw, Eye, EyeOff } from 'lucide-react';
+import { CheckCircle, XCircle, Upload, TestTube, Shield, Settings, FileText, Printer, X, Save, RotateCcw, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { SriService } from '@/services/sri.service';
 
 interface Props {
     settings: {
         company_name?: string;
-        business_name: string;
-        trade_name: string;
-        ruc: string;
-        address: string;
-        ubigeo: string;
-        department: string;
+        legal_name: string;
+        commercial_name: string;
+        tax_identification_number: string;
+        main_address: string;
+        branch_address?: string;
         province: string;
-        district: string;
+        canton: string;
+        parish: string;
         company_phone?: string;
         company_email?: string;
         logo_path?: string;
-        sunat_mode: string;
+        sri_mode: string;
         certificate_path?: string;
         certificate_password?: string;
-        sol_user: string;
-        sol_pass: string;
-        endpoint_fe?: string;
-        endpoint_guia?: string;
-        endpoint_retenciones?: string;
+        electronic_signature?: string;
+        establishment_code: string;
+        emission_point_code: string;
+        environment_type: string;
+        emission_type: string;
+        requires_electronic_signature: boolean;
+        endpoint_recepcion: string;
+        endpoint_autorizacion: string;
+        endpoint_consultas: string;
         invoice_series: string;
         receipt_series: string;
         credit_note_series: string;
         debit_note_series: string;
+        withholding_receipt_series: string;
+        liquidation_series: string;
         invoice_footer: string;
         receipt_footer: string;
         note_footer: string;
         report_header?: string;
         report_footer?: string;
-        document_series?: Record<string, unknown>;
+        company_status: string;
+        company_type: string;
+        registration_date?: string;
+        economic_activity_code?: string;
+        tax_responsibility_code?: string;
+        special_taxpayer_number?: string;
+        special_taxpayer_date?: string;
+        withholding_agent_number?: string;
+        withholding_agent_date?: string;
     };
     modes: { value: string; label: string }[];
-    document_types: { value: string; label: string }[];
-    unit_types: { value: string; label: string }[];
-    igv_types: { value: string; label: string }[];
+    environment_types: { value: string; label: string }[];
+    emission_types: { value: string; label: string }[];
+    company_statuses: { value: string; label: string }[];
+    company_types: { value: string; label: string }[];
+    provinces: { value: string; label: string }[];
 }
 
 interface CertificateInfo {
@@ -58,8 +75,7 @@ interface CertificateInfo {
     size?: number;
     last_modified?: number;
     valid?: boolean;
-    expires_at?: string;
-    issued_to?: string;
+    type?: string;
 }
 
 interface ConnectionStatus {
@@ -69,65 +85,165 @@ interface ConnectionStatus {
     message?: string;
 }
 
-export default function Index({ settings, modes }: Props) {
+export default function Index({ 
+    settings, 
+    modes, 
+    environment_types, 
+    emission_types, 
+    company_statuses, 
+    company_types, 
+    provinces 
+}: Props) {
     const [certificateInfo, setCertificateInfo] = useState<CertificateInfo | null>(null);
     const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus | null>(null);
     const [testingConnection, setTestingConnection] = useState(false);
-    const [useCustomEndpoints, setUseCustomEndpoints] = useState(false);
     const [logoPreview, setLogoPreview] = useState<string | null>(
         settings.logo_path ? `/${settings.logo_path}` : null
     );
     const [uploadingLogo, setUploadingLogo] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
-    const [certificateType, setCertificateType] = useState<'pem' | 'pfx' | null>(null);
-    const [showSolPassword, setShowSolPassword] = useState(false);
+    const [showCertificatePassword, setShowCertificatePassword] = useState(false);
+    const [showElectronicSignature, setShowElectronicSignature] = useState(false);
+    const [validatingRuc, setValidatingRuc] = useState(false);
+    const [validationErrors, setValidationErrors] = useState<{ [key: string]: string }>({});
+
     const { data, setData, post, processing, errors } = useForm({
+        // Company information
         company_name: settings.company_name || '',
-        business_name: settings.business_name || '',
-        trade_name: settings.trade_name || '',
-        ruc: settings.ruc || '',
-        address: settings.address || '',
-        ubigeo: settings.ubigeo || '',
-        department: settings.department || '',
+        legal_name: settings.legal_name || '',
+        commercial_name: settings.commercial_name || '',
+        tax_identification_number: settings.tax_identification_number || '',
+        main_address: settings.main_address || '',
+        branch_address: settings.branch_address || '',
         province: settings.province || '',
-        district: settings.district || '',
+        canton: settings.canton || '',
+        parish: settings.parish || '',
         company_phone: settings.company_phone || '',
         company_email: settings.company_email || '',
-        logo: null as File | null,
-        sunat_mode: settings.sunat_mode || 'beta',
+        company_status: settings.company_status || 'ACTIVE',
+        company_type: settings.company_type || '',
+        
+        // SRI configuration
+        sri_mode: settings.sri_mode || 'test',
         certificate: null as File | null,
         certificate_password: settings.certificate_password || '',
-        sol_user: settings.sol_user || '',
-        sol_pass: settings.sol_pass || '',
-        endpoint_fe: settings.endpoint_fe || '',
-        endpoint_guia: settings.endpoint_guia || '',
-        endpoint_retenciones: settings.endpoint_retenciones || '',
-        invoice_series: settings.invoice_series || 'F001',
-        receipt_series: settings.receipt_series || 'B001',
-        credit_note_series: settings.credit_note_series || 'FC01',
-        debit_note_series: settings.debit_note_series || 'FD01',
+        electronic_signature: settings.electronic_signature || '',
+        establishment_code: settings.establishment_code || '001',
+        emission_point_code: settings.emission_point_code || '001',
+        environment_type: settings.environment_type || 'test',
+        emission_type: settings.emission_type || 'normal',
+        requires_electronic_signature: settings.requires_electronic_signature || true,
+        
+        // SRI endpoints
+        endpoint_recepcion: settings.endpoint_recepcion || '',
+        endpoint_autorizacion: settings.endpoint_autorizacion || '',
+        endpoint_consultas: settings.endpoint_consultas || '',
+        
+        // Document series (SRI Ecuador format: 001-001-000000001)
+        invoice_series: settings.invoice_series || '001-001-000000001',
+        receipt_series: settings.receipt_series || '001-001-000000001',
+        credit_note_series: settings.credit_note_series || '001-001-000000001',
+        debit_note_series: settings.debit_note_series || '001-001-000000001',
+        withholding_receipt_series: settings.withholding_receipt_series || '001-001-000000001',
+        liquidation_series: settings.liquidation_series || '001-001-000000001',
+        
+        // Additional SRI fields
+        registration_date: settings.registration_date || '',
+        economic_activity_code: settings.economic_activity_code || '',
+        tax_responsibility_code: settings.tax_responsibility_code || '',
+        special_taxpayer_number: settings.special_taxpayer_number || '',
+        special_taxpayer_date: settings.special_taxpayer_date || '',
+        withholding_agent_number: settings.withholding_agent_number || '',
+        withholding_agent_date: settings.withholding_agent_date || '',
+        
+        // Printing settings
         invoice_footer: settings.invoice_footer || '',
         receipt_footer: settings.receipt_footer || '',
         note_footer: settings.note_footer || '',
         report_header: settings.report_header || '',
         report_footer: settings.report_footer || '',
+        
+        // Logo
+        logo: null as File | null,
     });
 
     useEffect(() => {
         if (settings.certificate_path) {
             loadCertificateInfo();
-            // Detectar tipo de certificado existente
-            const certPath = settings.certificate_path.toLowerCase();
-            if (certPath.endsWith('.pem') || certPath.endsWith('.crt')) {
-                setCertificateType('pem');
-            } else if (certPath.endsWith('.pfx') || certPath.endsWith('.p12')) {
-                setCertificateType('pfx');
-            }
-        }
-        if (settings.endpoint_fe || settings.endpoint_guia || settings.endpoint_retenciones) {
-            setUseCustomEndpoints(true);
         }
     }, []);
+
+    const extractEconomicActivityCode = (activity: string): string => {
+        // Esto es un ejemplo - ajusta según el formato real de tu data
+        const match = activity.match(/\((\d+)\)/);
+        return match ? match[1] : '';
+    };
+
+    const validateRuc = async () => {
+        const { tax_identification_number } = data;
+        
+        if (!tax_identification_number || tax_identification_number.length !== 13) {
+            return;
+        }
+    
+        setValidatingRuc(true);
+        setValidationErrors(prev => {
+            const { tax_identification_number, ...rest } = prev;
+            return rest;
+        });
+    
+        try {
+            const result = await SriService.validateRuc(tax_identification_number);
+            
+            if (result.success && result.data) {
+                const razonSocial = result.data!.legal_name || result.data!.business_name;
+                
+                setData(prev => ({
+                    ...prev,
+                    legal_name: razonSocial, // ← Para el campo legal_name
+                    company_name: razonSocial, // ← También actualiza company_name
+                    commercial_name: result.data!.commercial_name || razonSocial,
+                    main_address: result.data!.address,
+                    province: result.data!.province,
+                    canton: result.data!.canton,
+                    parish: result.data!.parish,
+                    establishment_code: result.data!.establishment_code,
+                    emission_point_code: result.data!.emission_point_code,
+                    company_status: result.data!.company_status,
+                    company_type: result.data!.company_type,
+                    economic_activity_code: extractEconomicActivityCode(result.data!.main_activity),
+                }));
+                
+                toast.success('RUC validado correctamente con SRI');
+            } else {
+                setValidationErrors(prev => ({
+                    ...prev,
+                    tax_identification_number: result.error || 'RUC no válido en el SRI',
+                }));
+                toast.error(result.error || 'Error al validar el RUC');
+            }
+        } catch (error) {
+            console.error('Error validating RUC:', error);
+            setValidationErrors(prev => ({
+                ...prev,
+                tax_identification_number: 'Error al consultar el RUC en el SRI',
+            }));
+            toast.error('Error al consultar el RUC en el SRI');
+        } finally {
+            setValidatingRuc(false);
+        }
+    };
+
+    // Efecto para validar automáticamente cuando el RUC tiene 13 dígitos
+    useEffect(() => {
+        if (data.tax_identification_number.length === 13) {
+            const timeoutId = setTimeout(() => {
+                validateRuc();
+            }, 1000); // Debounce de 1 segundo
+
+            return () => clearTimeout(timeoutId);
+        }
+    }, [data.tax_identification_number]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -151,16 +267,6 @@ export default function Index({ settings, modes }: Props) {
             
             if (field === 'certificate') {
                 setCertificateInfo(null);
-                // Detectar tipo de certificado por extensión
-                const fileName = file.name.toLowerCase();
-                if (fileName.endsWith('.pem') || fileName.endsWith('.crt')) {
-                    setCertificateType('pem');
-                    setData('certificate_password', ''); // Limpiar contraseña para PEM
-                } else if (fileName.endsWith('.pfx') || fileName.endsWith('.p12')) {
-                    setCertificateType('pfx');
-                } else {
-                    setCertificateType(null);
-                }
             } else if (field === 'logo') {
                 // Crear preview del logo
                 const reader = new FileReader();
@@ -198,17 +304,14 @@ export default function Index({ settings, modes }: Props) {
                     const response = JSON.parse(xhr.responseText);
                     if (response.success) {
                         toast.success('Logo actualizado correctamente');
-                        // Actualizar la configuración con la nueva ruta del logo
-                        setData('logo', null); // Limpiar el archivo temporal
-                        // Actualizar la configuración para reflejar el nuevo logo
-                        window.location.reload(); // Recargar para obtener la nueva configuración
+                        setData('logo', null);
                     } else {
                         toast.error(response.message || 'Error al subir el logo');
-                        setLogoPreview(settings.logo_path ? `/storage/${settings.logo_path}` : null); // Revertir preview
+                        setLogoPreview(settings.logo_path ? `/storage/${settings.logo_path}` : null);
                     }
                 } else {
                     toast.error('Error al subir el logo');
-                    setLogoPreview(settings.logo_path ? `/storage/${settings.logo_path}` : null); // Revertir preview
+                    setLogoPreview(settings.logo_path ? `/storage/${settings.logo_path}` : null);
                 }
                 setUploadingLogo(false);
                 setUploadProgress(0);
@@ -216,7 +319,7 @@ export default function Index({ settings, modes }: Props) {
             
             xhr.addEventListener('error', () => {
                 toast.error('Error de red al subir el logo');
-                setLogoPreview(settings.logo_path ? `/storage/${settings.logo_path}` : null); // Revertir preview
+                setLogoPreview(settings.logo_path ? `/storage/${settings.logo_path}` : null);
                 setUploadingLogo(false);
                 setUploadProgress(0);
             });
@@ -226,7 +329,7 @@ export default function Index({ settings, modes }: Props) {
             
         } catch {
             toast.error('Error al subir el logo');
-            setLogoPreview(settings.logo_path ? `/storage/${settings.logo_path}` : null); // Revertir preview
+            setLogoPreview(settings.logo_path ? `/storage/${settings.logo_path}` : null);
             setUploadingLogo(false);
             setUploadProgress(0);
         }
@@ -255,25 +358,24 @@ export default function Index({ settings, modes }: Props) {
         }
     };
 
-    const testSunatConnection = async () => {
-        if (!data.ruc || !data.sol_user || !data.sol_pass) {
-            toast.error('Por favor complete las credenciales SUNAT');
+    const testSriConnection = async () => {
+        if (!data.tax_identification_number || !data.certificate_password) {
+            toast.error('Por favor complete las credenciales SRI');
             return;
         }
 
         setTestingConnection(true);
         try {
-            const response = await fetch('/settings/test-sunat-connection', {
+            const response = await fetch('/settings/test-sri-connection', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
                 },
                 body: JSON.stringify({
-                    ruc: data.ruc,
-                    sol_user: data.sol_user,
-                    sol_pass: data.sol_pass,
-                    sunat_mode: data.sunat_mode,
+                    tax_identification_number: data.tax_identification_number,
+                    certificate_password: data.certificate_password,
+                    sri_mode: data.sri_mode,
                 }),
             });
 
@@ -286,7 +388,7 @@ export default function Index({ settings, modes }: Props) {
                     timestamp: result.data.timestamp,
                     message: result.message
                 });
-                toast.success('Conexión exitosa con SUNAT');
+                toast.success('Conexión exitosa con SRI Ecuador');
             } else {
                 setConnectionStatus({
                     connected: false,
@@ -297,9 +399,9 @@ export default function Index({ settings, modes }: Props) {
         } catch {
             setConnectionStatus({
                 connected: false,
-                message: 'Error de red al conectar con SUNAT'
+                message: 'Error de red al conectar con SRI'
             });
-            toast.error('Error de red al conectar con SUNAT');
+            toast.error('Error de red al conectar con SRI');
         } finally {
             setTestingConnection(false);
         }
@@ -322,7 +424,8 @@ export default function Index({ settings, modes }: Props) {
                     exists: result.data.exists,
                     size: result.data.size,
                     last_modified: result.data.last_modified,
-                    valid: true // Aquí se podría validar el certificado
+                    type: result.data.type,
+                    valid: true
                 });
             } else {
                 setCertificateInfo({
@@ -345,10 +448,10 @@ export default function Index({ settings, modes }: Props) {
         return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
     };
 
-    const getSunatModeColor = (mode: string) => {
+    const getSriModeColor = (mode: string) => {
         switch (mode) {
             case 'production': return 'bg-green-100 text-green-800';
-            case 'beta': return 'bg-yellow-100 text-yellow-800';
+            case 'test': return 'bg-yellow-100 text-yellow-800';
             default: return 'bg-gray-100 text-gray-800';
         }
     };
@@ -360,14 +463,14 @@ export default function Index({ settings, modes }: Props) {
                     <div>
                         <h1 className="text-3xl font-bold flex items-center gap-2">
                             <Settings className="h-8 w-8" />
-                            Configuración de Facturación Electrónica
+                            Configuración de Facturación Electrónica SRI
                         </h1>
                         <p className="text-muted-foreground mt-2">
-                            Configure su sistema de facturación electrónica para SRI
+                            Configure su sistema de facturación electrónica para SRI Ecuador
                         </p>
                     </div>
-                    <Badge className={getSunatModeColor(data.sunat_mode)}>
-                        {modes.find(m => m.value === data.sunat_mode)?.label || 'No configurado'}
+                    <Badge className={getSriModeColor(data.sri_mode)}>
+                        {modes.find(m => m.value === data.sri_mode)?.label || 'No configurado'}
                     </Badge>
                 </div>
 
@@ -382,46 +485,95 @@ export default function Index({ settings, modes }: Props) {
                         </CardHeader>
                         <CardContent className="space-y-6">
                             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                {/* Campo RUC con validación */}
                                 <div>
-                                    <Label htmlFor="business_name">Razón Social *</Label>
+                                    <Label htmlFor="tax_identification_number">RUC *</Label>
+                                    <div className="relative">
+                                        <Input
+                                            id="tax_identification_number"
+                                            value={data.tax_identification_number}
+                                            onChange={(e) => setData('tax_identification_number', e.target.value)}
+                                            placeholder="1234567890123"
+                                            maxLength={13}
+                                            className={`${errors.tax_identification_number ? 'border-red-500' : ''} ${validatingRuc ? 'pr-10' : ''}`}
+                                        />
+                                        {validatingRuc && (
+                                            <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                                                <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+                                            </div>
+                                        )}
+                                    </div>
+                                    {errors.tax_identification_number && (
+                                        <p className="text-sm text-red-500 mt-1">{errors.tax_identification_number}</p>
+                                    )}
+                                    {validationErrors.tax_identification_number && (
+                                        <p className="text-sm text-red-500 mt-1">{validationErrors.tax_identification_number}</p>
+                                    )}
+                                    <p className="text-sm text-muted-foreground mt-1">
+                                        Ingrese los 13 dígitos del RUC para validar automáticamente con SRI
+                                    </p>
+                                    
+                                    {/* Botón para validar manualmente */}
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={validateRuc}
+                                        disabled={validatingRuc || data.tax_identification_number.length !== 13}
+                                        className="mt-2"
+                                    >
+                                        {validatingRuc ? (
+                                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                        ) : (
+                                            <TestTube className="h-4 w-4 mr-2" />
+                                        )}
+                                        Validar RUC
+                                    </Button>
+                                </div>
+
+                                {/* Campo Company Name (Nombre de la Empresa) */}
+                                <div>
+                                    <Label htmlFor="company_name">Nombre de la Empresa *</Label>
                                     <Input
-                                        id="business_name"
-                                        value={data.business_name}
-                                        onChange={(e) => setData('business_name', e.target.value)}
+                                        id="company_name"
+                                        value={data.company_name}
+                                        onChange={(e) => setData('company_name', e.target.value)}
+                                        placeholder="Nombre de la empresa"
+                                        className={errors.company_name ? 'border-red-500' : ''}
+                                    />
+                                    {errors.company_name && (
+                                        <p className="text-sm text-red-500 mt-1">{errors.company_name}</p>
+                                    )}
+                                </div>
+                                
+                                <div>
+                                    <Label htmlFor="legal_name">Razón Social *</Label>
+                                    <Input
+                                        id="legal_name"
+                                        value={data.legal_name}
+                                        onChange={(e) => setData('legal_name', e.target.value)}
                                         placeholder="Razón social según SRI"
-                                        className={errors.business_name ? 'border-red-500' : ''}
+                                        className={errors.legal_name ? 'border-red-500' : ''}
                                     />
-                                    {errors.business_name && (
-                                        <p className="text-sm text-red-500 mt-1">{errors.business_name}</p>
+                                    {errors.legal_name && (
+                                        <p className="text-sm text-red-500 mt-1">{errors.legal_name}</p>
                                     )}
                                 </div>
+                                
                                 <div>
-                                    <Label htmlFor="trade_name">Nombre Comercial</Label>
+                                    <Label htmlFor="commercial_name">Nombre Comercial</Label>
                                     <Input
-                                        id="trade_name"
-                                        value={data.trade_name}
-                                        onChange={(e) => setData('trade_name', e.target.value)}
+                                        id="commercial_name"
+                                        value={data.commercial_name}
+                                        onChange={(e) => setData('commercial_name', e.target.value)}
                                         placeholder="Nombre comercial de la empresa"
-                                        className={errors.trade_name ? 'border-red-500' : ''}
+                                        className={errors.commercial_name ? 'border-red-500' : ''}
                                     />
-                                    {errors.trade_name && (
-                                        <p className="text-sm text-red-500 mt-1">{errors.trade_name}</p>
+                                    {errors.commercial_name && (
+                                        <p className="text-sm text-red-500 mt-1">{errors.commercial_name}</p>
                                     )}
                                 </div>
-                                <div>
-                                    <Label htmlFor="ruc">RUC *</Label>
-                                    <Input
-                                        id="ruc"
-                                        value={data.ruc}
-                                        onChange={(e) => setData('ruc', e.target.value)}
-                                        placeholder="20123456789"
-                                        maxLength={13}
-                                        className={errors.ruc ? 'border-red-500' : ''}
-                                    />
-                                    {errors.ruc && (
-                                        <p className="text-sm text-red-500 mt-1">{errors.ruc}</p>
-                                    )}
-                                </div>
+                                
                                 <div>
                                     <Label htmlFor="company_email">Email</Label>
                                     <Input
@@ -439,79 +591,138 @@ export default function Index({ settings, modes }: Props) {
                             </div>
 
                             <div>
-                                <Label htmlFor="address">Dirección Fiscal *</Label>
+                                <Label htmlFor="main_address">Dirección Matriz *</Label>
                                 <Input
-                                    id="address"
-                                    value={data.address}
-                                    onChange={(e) => setData('address', e.target.value)}
+                                    id="main_address"
+                                    value={data.main_address}
+                                    onChange={(e) => setData('main_address', e.target.value)}
                                     placeholder="Dirección completa según SRI"
-                                    className={errors.address ? 'border-red-500' : ''}
+                                    className={errors.main_address ? 'border-red-500' : ''}
                                 />
-                                {errors.address && (
-                                    <p className="text-sm text-red-500 mt-1">{errors.address}</p>
+                                {errors.main_address && (
+                                    <p className="text-sm text-red-500 mt-1">{errors.main_address}</p>
+                                )}
+                            </div>
+
+                            <div>
+                                <Label htmlFor="branch_address">Dirección Sucursal</Label>
+                                <Input
+                                    id="branch_address"
+                                    value={data.branch_address}
+                                    onChange={(e) => setData('branch_address', e.target.value)}
+                                    placeholder="Dirección de sucursal (opcional)"
+                                    className={errors.branch_address ? 'border-red-500' : ''}
+                                />
+                                {errors.branch_address && (
+                                    <p className="text-sm text-red-500 mt-1">{errors.branch_address}</p>
                                 )}
                             </div>
 
                             <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
                                 <div>
-                                    <Label htmlFor="ubigeo">Cod Postal *</Label>
-                                    <Input
-                                        id="ubigeo"
-                                        value={data.ubigeo}
-                                        onChange={(e) => setData('ubigeo', e.target.value)}
-                                        placeholder="150101"
-                                        maxLength={6}
-                                        className={errors.ubigeo ? 'border-red-500' : ''}
-                                    />
-                                    {errors.ubigeo && (
-                                        <p className="text-sm text-red-500 mt-1">{errors.ubigeo}</p>
-                                    )}
-                                </div>
-                                <div>
-                                    <Label htmlFor="department">Provincia *</Label>
-                                    <Input
-                                        id="department"
-                                        value={data.department}
-                                        onChange={(e) => setData('department', e.target.value)}
-                                        placeholder="LIMA"
-                                        className={errors.department ? 'border-red-500' : ''}
-                                    />
-                                    {errors.department && (
-                                        <p className="text-sm text-red-500 mt-1">{errors.department}</p>
-                                    )}
-                                </div>
-                                <div>
-                                    <Label htmlFor="province">Canton *</Label>
-                                    <Input
-                                        id="province"
-                                        value={data.province}
-                                        onChange={(e) => setData('province', e.target.value)}
-                                        placeholder="LIMA"
-                                        className={errors.province ? 'border-red-500' : ''}
-                                    />
+                                    <Label htmlFor="province">Provincia *</Label>
+                                    <Select 
+                                        value={data.province} 
+                                        onValueChange={(value) => setData('province', value)}
+                                    >
+                                        <SelectTrigger className={errors.province ? 'border-red-500' : ''}>
+                                            <SelectValue placeholder="Seleccione provincia" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {provinces.map((province) => (
+                                                <SelectItem key={province.value} value={province.value}>
+                                                    {province.label}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
                                     {errors.province && (
                                         <p className="text-sm text-red-500 mt-1">{errors.province}</p>
                                     )}
                                 </div>
                                 <div>
-                                    <Label htmlFor="district">Ciudad *</Label>
+                                    <Label htmlFor="canton">Cantón *</Label>
                                     <Input
-                                        id="district"
-                                        value={data.district}
-                                        onChange={(e) => setData('district', e.target.value)}
-                                        placeholder="LIMA"
-                                        className={errors.district ? 'border-red-500' : ''}
+                                        id="canton"
+                                        value={data.canton}
+                                        onChange={(e) => setData('canton', e.target.value)}
+                                        placeholder="Cantón"
+                                        className={errors.canton ? 'border-red-500' : ''}
                                     />
-                                    {errors.district && (
-                                        <p className="text-sm text-red-500 mt-1">{errors.district}</p>
+                                    {errors.canton && (
+                                        <p className="text-sm text-red-500 mt-1">{errors.canton}</p>
                                     )}
+                                </div>
+                                <div>
+                                    <Label htmlFor="parish">Parroquia *</Label>
+                                    <Input
+                                        id="parish"
+                                        value={data.parish}
+                                        onChange={(e) => setData('parish', e.target.value)}
+                                        placeholder="Parroquia"
+                                        className={errors.parish ? 'border-red-500' : ''}
+                                    />
+                                    {errors.parish && (
+                                        <p className="text-sm text-red-500 mt-1">{errors.parish}</p>
+                                    )}
+                                </div>
+                                <div>
+                                    <Label htmlFor="company_phone">Teléfono</Label>
+                                    <Input
+                                        id="company_phone"
+                                        value={data.company_phone}
+                                        onChange={(e) => setData('company_phone', e.target.value)}
+                                        placeholder="+593 2 123 4567"
+                                        className={errors.company_phone ? 'border-red-500' : ''}
+                                    />
+                                    {errors.company_phone && (
+                                        <p className="text-sm text-red-500 mt-1">{errors.company_phone}</p>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                <div>
+                                    <Label htmlFor="company_status">Estado de la Empresa</Label>
+                                    <Select 
+                                        value={data.company_status} 
+                                        onValueChange={(value) => setData('company_status', value)}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Seleccione estado" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {company_statuses.map((status) => (
+                                                <SelectItem key={status.value} value={status.value}>
+                                                    {status.label}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div>
+                                    <Label htmlFor="company_type">Tipo de Empresa</Label>
+                                    <Select 
+                                        value={data.company_type} 
+                                        onValueChange={(value) => setData('company_type', value)}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Seleccione tipo" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {company_types.map((type) => (
+                                                <SelectItem key={type.value} value={type.value}>
+                                                    {type.label}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
                                 </div>
                             </div>
 
                             <div>
                                 <Label htmlFor="logo">Logo de la Empresa</Label>
                                 <div className="space-y-4">
-                                    {/* Preview del logo */}
                                     {logoPreview && (
                                         <div className="relative inline-block">
                                             <div className="relative w-32 h-32 border-2 border-dashed border-gray-300 rounded-lg overflow-hidden bg-gray-50">
@@ -540,7 +751,6 @@ export default function Index({ settings, modes }: Props) {
                                         </div>
                                     )}
                                     
-                                    {/* Barra de progreso */}
                                     {uploadingLogo && (
                                         <div className="space-y-2">
                                             <Progress value={uploadProgress} className="w-full" />
@@ -550,13 +760,12 @@ export default function Index({ settings, modes }: Props) {
                                         </div>
                                     )}
                                     
-                                    {/* Input de archivo */}
                                     <div className="flex items-center gap-4">
-                                <Input
-                                    id="logo"
-                                    type="file"
-                                    accept="image/*"
-                                    onChange={(e) => handleFileChange(e, 'logo')}
+                                        <Input
+                                            id="logo"
+                                            type="file"
+                                            accept="image/*"
+                                            onChange={(e) => handleFileChange(e, 'logo')}
                                             className={`flex-1 ${errors.logo ? 'border-red-500' : ''}`}
                                             disabled={uploadingLogo}
                                         />
@@ -573,7 +782,6 @@ export default function Index({ settings, modes }: Props) {
                                     )}
                                     
                                     <p className="text-sm text-muted-foreground">
-                                        El logo se guardará automáticamente al seleccionar un archivo. 
                                         Formatos soportados: JPG, PNG, GIF (máx. 2MB)
                                     </p>
                                 </div>
@@ -581,85 +789,151 @@ export default function Index({ settings, modes }: Props) {
                         </CardContent>
                     </Card>
 
-                    {/* Configuración SRI */}
+                    {/* Configuración SRI Ecuador */}
                     <Card>
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
                                 <Shield className="h-5 w-5" />
-                                Configuración SRI
+                                Configuración SRI Ecuador
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-6">
-                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
                                 <div>
-                                    <Label htmlFor="sunat_mode">Modo de Operación *</Label>
-                                    <Select value={data.sunat_mode} onValueChange={(value) => setData('sunat_mode', value)}>
-                                        <SelectTrigger className={errors.sunat_mode ? 'border-red-500' : ''}>
-                                            <SelectValue placeholder="Seleccione el modo de operación" />
+                                    <Label htmlFor="sri_mode">Modo de Operación *</Label>
+                                    <Select value={data.sri_mode} onValueChange={(value) => setData('sri_mode', value)}>
+                                        <SelectTrigger className={errors.sri_mode ? 'border-red-500' : ''}>
+                                            <SelectValue placeholder="Seleccione modo" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                        {modes.map((mode) => (
+                                            {modes.map((mode) => (
                                                 <SelectItem key={mode.value} value={mode.value}>
                                                     <div className="flex items-center gap-2">
                                                         <div className={`w-2 h-2 rounded-full ${mode.value === 'production' ? 'bg-green-500' : 'bg-yellow-500'}`} />
-                                                {mode.label}
+                                                        {mode.label}
                                                     </div>
                                                 </SelectItem>
-                                        ))}
+                                            ))}
                                         </SelectContent>
                                     </Select>
-                                    {errors.sunat_mode && (
-                                        <p className="text-sm text-red-500 mt-1">{errors.sunat_mode}</p>
-                                    )}
-                                    <p className="text-sm text-muted-foreground mt-1">
-                                        {data.sunat_mode === 'production' 
-                                            ? 'Modo producción: facturas válidas ante SRI' 
-                                            : 'Modo pruebas: para desarrollo y testing'
-                                        }
-                                    </p>
-                                </div>
-                                
-                                <div className="space-y-2">
-                                    <Label>Estado de Conexión</Label>
-                                    <div className="flex items-center gap-2">
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={testSunatConnection}
-                                            disabled={testingConnection}
-                                            className="flex items-center gap-2"
-                                        >
-                                            <TestTube className="h-4 w-4" />
-                                            {testingConnection ? 'Probando...' : 'Probar Conexión'}
-                                        </Button>
-                                        {connectionStatus && (
-                                            <div className="flex items-center gap-1">
-                                                {connectionStatus.connected ? (
-                                                    <CheckCircle className="h-4 w-4 text-green-500" />
-                                                ) : (
-                                                    <XCircle className="h-4 w-4 text-red-500" />
-                                                )}
-                                                <span className={`text-sm ${connectionStatus.connected ? 'text-green-600' : 'text-red-600'}`}>
-                                                    {connectionStatus.connected ? 'Conectado' : 'Error'}
-                                                </span>
-                                            </div>
-                                        )}
-                                    </div>
-                                    {connectionStatus?.message && (
-                                        <p className="text-sm text-muted-foreground">{connectionStatus.message}</p>
+                                    {errors.sri_mode && (
+                                        <p className="text-sm text-red-500 mt-1">{errors.sri_mode}</p>
                                     )}
                                 </div>
+
+                                <div>
+                                    <Label htmlFor="environment_type">Ambiente</Label>
+                                    <Select value={data.environment_type} onValueChange={(value) => setData('environment_type', value)}>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Seleccione ambiente" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {environment_types.map((env) => (
+                                                <SelectItem key={env.value} value={env.value}>
+                                                    {env.label}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                <div>
+                                    <Label htmlFor="emission_type">Tipo de Emisión</Label>
+                                    <Select value={data.emission_type} onValueChange={(value) => setData('emission_type', value)}>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Seleccione tipo" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {emission_types.map((emission) => (
+                                                <SelectItem key={emission.value} value={emission.value}>
+                                                    {emission.label}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                <div className="flex items-center space-x-2 pt-6">
+                                    <Switch
+                                        id="requires_electronic_signature"
+                                        checked={data.requires_electronic_signature}
+                                        onCheckedChange={(checked) => setData('requires_electronic_signature', checked)}
+                                    />
+                                    <Label htmlFor="requires_electronic_signature">Firma Electrónica</Label>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                <div>
+                                    <Label htmlFor="establishment_code">Código de Establecimiento *</Label>
+                                    <Input
+                                        id="establishment_code"
+                                        value={data.establishment_code}
+                                        onChange={(e) => setData('establishment_code', e.target.value)}
+                                        placeholder="001"
+                                        maxLength={3}
+                                        className={errors.establishment_code ? 'border-red-500' : ''}
+                                    />
+                                    {errors.establishment_code && (
+                                        <p className="text-sm text-red-500 mt-1">{errors.establishment_code}</p>
+                                    )}
+                                </div>
+                                <div>
+                                    <Label htmlFor="emission_point_code">Punto de Emisión *</Label>
+                                    <Input
+                                        id="emission_point_code"
+                                        value={data.emission_point_code}
+                                        onChange={(e) => setData('emission_point_code', e.target.value)}
+                                        placeholder="001"
+                                        maxLength={3}
+                                        className={errors.emission_point_code ? 'border-red-500' : ''}
+                                    />
+                                    {errors.emission_point_code && (
+                                        <p className="text-sm text-red-500 mt-1">{errors.emission_point_code}</p>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label>Estado de Conexión SRI</Label>
+                                <div className="flex items-center gap-2">
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={testSriConnection}
+                                        disabled={testingConnection}
+                                        className="flex items-center gap-2"
+                                    >
+                                        <TestTube className="h-4 w-4" />
+                                        {testingConnection ? 'Probando...' : 'Probar Conexión'}
+                                    </Button>
+                                    {connectionStatus && (
+                                        <div className="flex items-center gap-1">
+                                            {connectionStatus.connected ? (
+                                                <CheckCircle className="h-4 w-4 text-green-500" />
+                                            ) : (
+                                                <XCircle className="h-4 w-4 text-red-500" />
+                                            )}
+                                            <span className={`text-sm ${connectionStatus.connected ? 'text-green-600' : 'text-red-600'}`}>
+                                                {connectionStatus.connected ? 'Conectado' : 'Error'}
+                                            </span>
+                                        </div>
+                                    )}
+                                </div>
+                                {connectionStatus?.message && (
+                                    <p className="text-sm text-muted-foreground">{connectionStatus.message}</p>
+                                )}
                             </div>
 
                             {/* Certificado Digital */}
                             <div className="space-y-4">
                                 <div>
-                                    <Label htmlFor="certificate">Certificado Digital (.pfx, .p12) *</Label>
+                                    <Label htmlFor="certificate">Certificado Digital (.p12) *</Label>
                                     <Input
                                         id="certificate"
                                         type="file"
-                                        accept=".pfx,.p12,.pem,.cer,.cert,.crt"
+                                        accept=".p12"
                                         onChange={(e) => handleFileChange(e, 'certificate')}
                                         className={errors.certificate ? 'border-red-500' : ''}
                                     />
@@ -667,39 +941,68 @@ export default function Index({ settings, modes }: Props) {
                                         <p className="text-sm text-red-500 mt-1">{errors.certificate}</p>
                                     )}
                                     <p className="text-sm text-muted-foreground mt-1">
-                                        Certificado digital emitido por una entidad certificadora autorizada por SRI
+                                        Certificado digital .p12 para SRI Ecuador
                                     </p>
                                 </div>
 
-                                {certificateType === 'pfx' && (
-                                    <div>
-                                        <Label htmlFor="certificate_password">Contraseña del Certificado</Label>
+                                <div>
+                                    <Label htmlFor="certificate_password">Contraseña del Certificado</Label>
+                                    <div className="relative">
                                         <Input
                                             id="certificate_password"
-                                            type="password"
+                                            type={showCertificatePassword ? "text" : "password"}
                                             value={data.certificate_password}
                                             onChange={(e) => setData('certificate_password', e.target.value)}
-                                            placeholder="Contraseña del certificado PFX/P12"
-                                            className={errors.certificate_password ? 'border-red-500' : ''}
+                                            placeholder="Contraseña del certificado"
+                                            className={errors.certificate_password ? 'border-red-500 pr-10' : 'pr-10'}
                                         />
-                                        {errors.certificate_password && (
-                                            <p className="text-sm text-red-500 mt-1">{errors.certificate_password}</p>
+                                        <button
+                                            type="button"
+                                            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                                            onClick={() => setShowCertificatePassword(!showCertificatePassword)}
+                                        >
+                                            {showCertificatePassword ? (
+                                                <EyeOff className="h-4 w-4" />
+                                            ) : (
+                                                <Eye className="h-4 w-4" />
+                                            )}
+                                        </button>
+                                    </div>
+                                    {errors.certificate_password && (
+                                        <p className="text-sm text-red-500 mt-1">{errors.certificate_password}</p>
+                                    )}
+                                </div>
+
+                                {data.requires_electronic_signature && (
+                                    <div>
+                                        <Label htmlFor="electronic_signature">Firma Electrónica</Label>
+                                        <div className="relative">
+                                            <Input
+                                                id="electronic_signature"
+                                                type={showElectronicSignature ? "text" : "password"}
+                                                value={data.electronic_signature}
+                                                onChange={(e) => setData('electronic_signature', e.target.value)}
+                                                placeholder="Firma electrónica"
+                                                className={errors.electronic_signature ? 'border-red-500 pr-10' : 'pr-10'}
+                                            />
+                                            <button
+                                                type="button"
+                                                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                                                onClick={() => setShowElectronicSignature(!showElectronicSignature)}
+                                            >
+                                                {showElectronicSignature ? (
+                                                    <EyeOff className="h-4 w-4" />
+                                                ) : (
+                                                    <Eye className="h-4 w-4" />
+                                                )}
+                                            </button>
+                                        </div>
+                                        {errors.electronic_signature && (
+                                            <p className="text-sm text-red-500 mt-1">{errors.electronic_signature}</p>
                                         )}
-                                        <p className="text-sm text-muted-foreground mt-1">
-                                            Solo requerido para certificados PFX/P12
-                                        </p>
                                     </div>
                                 )}
-                                {certificateType === 'pem' && (
-                                    <Alert>
-                                        <CheckCircle className="h-4 w-4" />
-                                        <AlertDescription>
-                                            Los certificados PEM no requieren contraseña
-                                        </AlertDescription>
-                                    </Alert>
-                                )}
 
-                                {/* Información del Certificado */}
                                 {certificateInfo && (
                                     <Alert>
                                         <Shield className="h-4 w-4" />
@@ -724,9 +1027,9 @@ export default function Index({ settings, modes }: Props) {
                                                         <strong>Tamaño:</strong> {formatFileSize(certificateInfo.size)}
                                                     </p>
                                                 )}
-                                                {certificateInfo.last_modified && (
+                                                {certificateInfo.type && (
                                                     <p className="text-sm">
-                                                        <strong>Última modificación:</strong> {new Date(certificateInfo.last_modified * 1000).toLocaleString()}
+                                                        <strong>Tipo:</strong> {certificateInfo.type}
                                                     </p>
                                                 )}
                                             </div>
@@ -735,103 +1038,92 @@ export default function Index({ settings, modes }: Props) {
                                 )}
                             </div>
 
-                            {/* Endpoints Personalizados */}
-                            {/* <div className="space-y-4">
-                                <div className="flex items-center space-x-2">
-                                    <Switch
-                                        id="use-custom-endpoints"
-                                        checked={useCustomEndpoints}
-                                        onCheckedChange={setUseCustomEndpoints}
-                                    />
-                                    <Label htmlFor="use-custom-endpoints">Usar endpoints personalizados</Label>
-                                </div>
-
-                                {useCustomEndpoints && (
-                                    <div className="grid grid-cols-1 gap-4">
-                                        <div>
-                                            <Label htmlFor="endpoint_fe">Endpoint Facturación Electrónica</Label>
-                                            <Input
-                                                id="endpoint_fe"
-                                                value={data.endpoint_fe}
-                                                onChange={(e) => setData('endpoint_fe', e.target.value)}
-                                                placeholder="https://e-beta.sunat.gob.pe/ol-ti-itcpfegem-beta/billService"
-                                                className={errors.endpoint_fe ? 'border-red-500' : ''}
-                                            />
-                                            {errors.endpoint_fe && (
-                                                <p className="text-sm text-red-500 mt-1">{errors.endpoint_fe}</p>
-                                            )}
-                                        </div>
-                                        <div>
-                                            <Label htmlFor="endpoint_guia">Endpoint Guías de Remisión</Label>
-                                            <Input
-                                                id="endpoint_guia"
-                                                value={data.endpoint_guia}
-                                                onChange={(e) => setData('endpoint_guia', e.target.value)}
-                                                placeholder="https://e-beta.sunat.gob.pe/ol-ti-itemision-guia-gem-beta/billService"
-                                                className={errors.endpoint_guia ? 'border-red-500' : ''}
-                                            />
-                                            {errors.endpoint_guia && (
-                                                <p className="text-sm text-red-500 mt-1">{errors.endpoint_guia}</p>
-                                            )}
-                                        </div>
-                                        <div>
-                                            <Label htmlFor="endpoint_retenciones">Endpoint Retenciones</Label>
-                                            <Input
-                                                id="endpoint_retenciones"
-                                                value={data.endpoint_retenciones}
-                                                onChange={(e) => setData('endpoint_retenciones', e.target.value)}
-                                                placeholder="https://e-beta.sunat.gob.pe/ol-ti-itemision-otroscpe-gem-beta/billService"
-                                                className={errors.endpoint_retenciones ? 'border-red-500' : ''}
-                                            />
-                                            {errors.endpoint_retenciones && (
-                                                <p className="text-sm text-red-500 mt-1">{errors.endpoint_retenciones}</p>
-                                            )}
-                                        </div>
+                            {/* Endpoints SRI */}
+                            <div className="space-y-4">
+                                <h4 className="font-medium">Endpoints SRI</h4>
+                                <div className="grid grid-cols-1 gap-4">
+                                    <div>
+                                        <Label htmlFor="endpoint_recepcion">Endpoint Recepción</Label>
+                                        <Input
+                                            id="endpoint_recepcion"
+                                            value={data.endpoint_recepcion}
+                                            onChange={(e) => setData('endpoint_recepcion', e.target.value)}
+                                            placeholder="https://celcer.sri.gob.ec/comprobantes-electronicos-ws/RecepcionComprobantesOffline?wsdl"
+                                            className={errors.endpoint_recepcion ? 'border-red-500' : ''}
+                                        />
+                                        {errors.endpoint_recepcion && (
+                                            <p className="text-sm text-red-500 mt-1">{errors.endpoint_recepcion}</p>
+                                        )}
                                     </div>
-                                )}
-                            </div> */}
+                                    <div>
+                                        <Label htmlFor="endpoint_autorizacion">Endpoint Autorización</Label>
+                                        <Input
+                                            id="endpoint_autorizacion"
+                                            value={data.endpoint_autorizacion}
+                                            onChange={(e) => setData('endpoint_autorizacion', e.target.value)}
+                                            placeholder="https://celcer.sri.gob.ec/comprobantes-electronicos-ws/AutorizacionComprobantesOffline?wsdl"
+                                            className={errors.endpoint_autorizacion ? 'border-red-500' : ''}
+                                        />
+                                        {errors.endpoint_autorizacion && (
+                                            <p className="text-sm text-red-500 mt-1">{errors.endpoint_autorizacion}</p>
+                                        )}
+                                    </div>
+                                    <div>
+                                        <Label htmlFor="endpoint_consultas">Endpoint Consultas</Label>
+                                        <Input
+                                            id="endpoint_consultas"
+                                            value={data.endpoint_consultas}
+                                            onChange={(e) => setData('endpoint_consultas', e.target.value)}
+                                            placeholder="https://celcer.sri.gob.ec/comprobantes-electronicos-ws/ConsultaLote?wsdl"
+                                            className={errors.endpoint_consultas ? 'border-red-500' : ''}
+                                        />
+                                        {errors.endpoint_consultas && (
+                                            <p className="text-sm text-red-500 mt-1">{errors.endpoint_consultas}</p>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
                         </CardContent>
                     </Card>
 
-                    {/* Series de Documentos */}
+                    {/* Series de Documentos SRI */}
                     <Card>
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
                                 <FileText className="h-5 w-5" />
-                                Series de Documentos
+                                Series de Documentos SRI
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
                                 <div>
                                     <Label htmlFor="invoice_series">Serie Facturas</Label>
                                     <Input
                                         id="invoice_series"
                                         value={data.invoice_series}
                                         onChange={(e) => setData('invoice_series', e.target.value)}
-                                        placeholder="F001"
-                                        maxLength={4}
+                                        placeholder="001-001-000000001"
+                                        maxLength={17}
                                         className={errors.invoice_series ? 'border-red-500' : ''}
                                     />
                                     {errors.invoice_series && (
                                         <p className="text-sm text-red-500 mt-1">{errors.invoice_series}</p>
                                     )}
-                                    <p className="text-sm text-muted-foreground mt-1">Ejemplo: F001</p>
+                                    <p className="text-sm text-muted-foreground mt-1">Formato: 001-001-000000001</p>
                                 </div>
                                 <div>
-                                    <Label htmlFor="receipt_series">Serie Boletas</Label>
+                                    <Label htmlFor="receipt_series">Serie Recibos</Label>
                                     <Input
                                         id="receipt_series"
                                         value={data.receipt_series}
                                         onChange={(e) => setData('receipt_series', e.target.value)}
-                                        placeholder="B001"
-                                        maxLength={4}
+                                        placeholder="001-001-000000001"
+                                        maxLength={17}
                                         className={errors.receipt_series ? 'border-red-500' : ''}
                                     />
                                     {errors.receipt_series && (
                                         <p className="text-sm text-red-500 mt-1">{errors.receipt_series}</p>
                                     )}
-                                    <p className="text-sm text-muted-foreground mt-1">Ejemplo: B001</p>
                                 </div>
                                 <div>
                                     <Label htmlFor="credit_note_series">Serie Notas de Crédito</Label>
@@ -839,14 +1131,13 @@ export default function Index({ settings, modes }: Props) {
                                         id="credit_note_series"
                                         value={data.credit_note_series}
                                         onChange={(e) => setData('credit_note_series', e.target.value)}
-                                        placeholder="FC01"
-                                        maxLength={4}
+                                        placeholder="001-001-000000001"
+                                        maxLength={17}
                                         className={errors.credit_note_series ? 'border-red-500' : ''}
                                     />
                                     {errors.credit_note_series && (
                                         <p className="text-sm text-red-500 mt-1">{errors.credit_note_series}</p>
                                     )}
-                                    <p className="text-sm text-muted-foreground mt-1">Ejemplo: FC01</p>
                                 </div>
                                 <div>
                                     <Label htmlFor="debit_note_series">Serie Notas de Débito</Label>
@@ -854,14 +1145,41 @@ export default function Index({ settings, modes }: Props) {
                                         id="debit_note_series"
                                         value={data.debit_note_series}
                                         onChange={(e) => setData('debit_note_series', e.target.value)}
-                                        placeholder="FD01"
-                                        maxLength={4}
+                                        placeholder="001-001-000000001"
+                                        maxLength={17}
                                         className={errors.debit_note_series ? 'border-red-500' : ''}
                                     />
                                     {errors.debit_note_series && (
                                         <p className="text-sm text-red-500 mt-1">{errors.debit_note_series}</p>
                                     )}
-                                    <p className="text-sm text-muted-foreground mt-1">Ejemplo: FD01</p>
+                                </div>
+                                <div>
+                                    <Label htmlFor="withholding_receipt_series">Serie Comprobantes Retención</Label>
+                                    <Input
+                                        id="withholding_receipt_series"
+                                        value={data.withholding_receipt_series}
+                                        onChange={(e) => setData('withholding_receipt_series', e.target.value)}
+                                        placeholder="001-001-000000001"
+                                        maxLength={17}
+                                        className={errors.withholding_receipt_series ? 'border-red-500' : ''}
+                                    />
+                                    {errors.withholding_receipt_series && (
+                                        <p className="text-sm text-red-500 mt-1">{errors.withholding_receipt_series}</p>
+                                    )}
+                                </div>
+                                <div>
+                                    <Label htmlFor="liquidation_series">Serie Liquidaciones</Label>
+                                    <Input
+                                        id="liquidation_series"
+                                        value={data.liquidation_series}
+                                        onChange={(e) => setData('liquidation_series', e.target.value)}
+                                        placeholder="001-001-000000001"
+                                        maxLength={17}
+                                        className={errors.liquidation_series ? 'border-red-500' : ''}
+                                    />
+                                    {errors.liquidation_series && (
+                                        <p className="text-sm text-red-500 mt-1">{errors.liquidation_series}</p>
+                                    )}
                                 </div>
                             </div>
                         </CardContent>
@@ -907,7 +1225,7 @@ export default function Index({ settings, modes }: Props) {
                         </CardContent>
                     </Card>
 
-                    {/* Configuración de Impresión (Legacy) */}
+                    {/* Configuración de Impresión */}
                     <Card>
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
@@ -931,12 +1249,12 @@ export default function Index({ settings, modes }: Props) {
                                 )}
                             </div>
                             <div>
-                                <Label htmlFor="receipt_footer">Pie de Página Boletas</Label>
+                                <Label htmlFor="receipt_footer">Pie de Página Recibos</Label>
                                 <Textarea
                                     id="receipt_footer"
                                     value={data.receipt_footer}
                                     onChange={(e) => setData('receipt_footer', e.target.value)}
-                                    placeholder="Texto que aparecerá en el pie de página de las boletas"
+                                    placeholder="Texto que aparecerá en el pie de página de los recibos"
                                     rows={2}
                                     className={errors.receipt_footer ? 'border-red-500' : ''}
                                 />
@@ -950,7 +1268,7 @@ export default function Index({ settings, modes }: Props) {
                                     id="note_footer"
                                     value={data.note_footer}
                                     onChange={(e) => setData('note_footer', e.target.value)}
-                                    placeholder="Texto que aparecerá en el pie de página de las notas de crédito/débito"
+                                    placeholder="Texto que aparecerá en el pie de página de las notas"
                                     rows={2}
                                     className={errors.note_footer ? 'border-red-500' : ''}
                                 />
@@ -964,7 +1282,6 @@ export default function Index({ settings, modes }: Props) {
                     {/* Botones flotantes */}
                     <div className="fixed bottom-6 right-6 z-50">
                         <div className="flex flex-col gap-3">
-                            {/* Indicador de subida de logo */}
                             {uploadingLogo && (
                                 <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 shadow-lg">
                                     <div className="flex items-center gap-3">
@@ -1004,12 +1321,11 @@ export default function Index({ settings, modes }: Props) {
                                             Guardar Configuración
                                         </>
                                     )}
-                        </Button>
+                                </Button>
                             </div>
                         </div>
                     </div>
                     
-                    {/* Espaciado para los botones flotantes */}
                     <div className="pb-20"></div>
                 </form>
             </div>

@@ -7,19 +7,19 @@ use Illuminate\Support\Facades\Route;
 use Stancl\Tenancy\Middleware\InitializeTenancyByDomain;
 use Stancl\Tenancy\Middleware\PreventAccessFromCentralDomains;
 use App\Http\Controllers\Tenant\Api\CategoryController;
-use App\Http\Controllers\Tenant\Api\ClientController;
+use App\Http\Controllers\Tenant\Api\ChartOfAccountsController;
 use App\Http\Controllers\Tenant\Api\CustomerController;
 use App\Http\Controllers\Tenant\Api\ProductController;
-use App\Http\Controllers\Tenant\Api\InvoiceController;
+use App\Http\Controllers\Tenant\Api\InvoicesController;
 use App\Http\Services\Tenant\ValidateDocument;
 use App\Http\Controllers\Tenant\Api\AuthController;
-use App\Http\Controllers\Tenant\Api\SaleController;
+use App\Http\Controllers\Tenant\Api\InvoiceSaleController;
 use App\Http\Controllers\Tenant\Api\UserController;
 use App\Http\Controllers\Tenant\Api\RoleController;
 use App\Http\Controllers\Tenant\Api\ApiKeyController;
 use App\Http\Controllers\Tenant\Api\SubscriptionController;
 use App\Http\Controllers\SRI\SriController;
-
+use App\Http\Controllers\Auth\CentralLoginController;
 
 Route::get('sris/info', [SriController::class, 'info']);
 Route::post('sris/search', [SriController::class, 'search']);
@@ -56,7 +56,7 @@ Route::middleware([
         Route::post('/auth/revoke', [AuthController::class, 'revokeToken']);
 
         // Ruta para verificar el estado de la suscripción (sin verificación de límites)
-        Route::get('/subscription/status', [InvoiceController::class, 'checkSubscriptionStatus']);
+        Route::get('/subscription/status', [InvoicesController::class, 'checkSubscriptionStatus']);
 
         // Rutas de validación de documentos (con verificación de límites)
         Route::middleware(['check.invoice.limit'])->group(function () {
@@ -66,9 +66,9 @@ Route::middleware([
 
             // Rutas de facturas
             Route::prefix('invoices')->group(function () {
-                Route::get('/usage', [InvoiceController::class, 'getUsageStatistics']);
-                Route::get('/plan', [InvoiceController::class, 'getCurrentPlan']);
-                Route::post('/', [InvoiceController::class, 'createInvoice']);
+                Route::get('/usage', [InvoicesController::class, 'getUsageStatistics']);
+                Route::get('/plan', [InvoicesController::class, 'getCurrentPlan']);
+                Route::post('/', [InvoicesController::class, 'createInvoice']);
             });
         });
 
@@ -76,24 +76,45 @@ Route::middleware([
         Route::apiResource('categories', CategoryController::class);
 
         // Rutas de clientes
-        Route::apiResource('clients', ClientController::class);
-        Route::apiResource('customer', CustomerController::class);
+        Route::prefix('customer')->name('customer.')->group(function () {
+            Route::get('/', [CustomerController::class, 'index'])->name('index');
+            Route::get('/create', [CustomerController::class, 'create'])->name('create');
+            Route::get('/all', [CustomerController::class, 'all'])->name('all');;
+            Route::post('/', [CustomerController::class, 'store'])->name('store');
+            Route::get('/{chartOfAccount}/edit', [CustomerController::class, 'edit'])->name('edit');
+            Route::put('/{chartOfAccount}', [CustomerController::class, 'update'])->name('update');
+            Route::delete('/{chartOfAccount}', [CustomerController::class, 'destroy'])->name('destroy');
+        });
+        Route::prefix('chart-of-accounts')->name('chart-of-accounts.')->group(function () {
+            Route::get('/', [ChartOfAccountsController::class, 'index'])->name('index');
+            Route::get('/create', [ChartOfAccountsController::class, 'create'])->name('create');
+            Route::post('/', [ChartOfAccountsController::class, 'store'])->name('store');
+            Route::get('/{chartOfAccount}/edit', [ChartOfAccountsController::class, 'edit'])->name('edit');
+            Route::put('/{chartOfAccount}', [ChartOfAccountsController::class, 'update'])->name('update');
+            Route::delete('/{chartOfAccount}', [ChartOfAccountsController::class, 'destroy'])->name('destroy');
+            
+            // Ruta específica para importación
+            Route::post('/import', [ChartOfAccountsController::class, 'import'])->name('import');
+        });
 
         // Rutas de productos
         Route::get('products/next-code', [ProductController::class, 'nextCode']);
         Route::apiResource('products', ProductController::class);
 
         // Rutas de ventas
-        Route::apiResource('sales', SaleController::class);
+        
         Route::prefix('sales')->name('api.sales.')->group(function () {
-            Route::post('{sale}/generate-electronic', [SaleController::class, 'generateElectronic'])->name('generate-electronic');
-            Route::get('{sale}/download-xml', [SaleController::class, 'downloadXml'])->name('download-xml');
-            Route::get('{sale}/download-cdr', [SaleController::class, 'downloadCdr'])->name('download-cdr');
-            Route::get('{sale}/download-pdf', [SaleController::class, 'downloadPdf'])->name('download-pdf');
-            Route::post('{sale}/send-email', [SaleController::class, 'sendByEmail'])->name('send-email');
-            Route::post('{sale}/whatsapp-link', [SaleController::class, 'generateWhatsAppLink'])->name('whatsapp-link');
-            Route::get('{sale}/details', [SaleController::class, 'getSaleDetails'])->name('details');
+            Route::get('next-sequential', [InvoiceSaleController::class, 'getNextSequential'])->name('next-number');
+            Route::post('{sale}/generate-electronic', [InvoiceSaleController::class, 'generateElectronic'])->name('generate-electronic');
+            Route::get('{sale}/download-xml', [InvoiceSaleController::class, 'downloadXml'])->name('download-xml');
+            Route::get('{sale}/download-cdr', [InvoiceSaleController::class, 'downloadCdr'])->name('download-cdr');
+            Route::get('{sale}/download-pdf', [InvoiceSaleController::class, 'downloadPdf'])->name('download-pdf');
+            Route::post('{sale}/send-email', [InvoiceSaleController::class, 'sendByEmail'])->name('send-email');
+            Route::post('{sale}/whatsapp-link', [InvoiceSaleController::class, 'generateWhatsAppLink'])->name('whatsapp-link');
+            Route::get('{sale}/details', [InvoiceSaleController::class, 'getSaleDetails'])->name('details');
+            Route::get('next-sequential', [InvoiceSaleController::class, 'getNextSequential'])->name('next-number');
         });
+        Route::apiResource('sales', InvoiceSaleController::class);
 
         // Rutas de usuarios
         Route::apiResource('users', UserController::class);
@@ -107,8 +128,8 @@ Route::middleware([
         Route::apiResource('api-keys', ApiKeyController::class)->only(['index', 'store', 'destroy']);
 
         // Rutas de facturas
-        Route::apiResource('invoices', InvoiceController::class);
-        Route::put('invoices/{invoice}/status', [InvoiceController::class, 'updateStatus']);
+        Route::apiResource('invoices', InvoicesController::class);
+        Route::put('invoices/{invoice}/status', [InvoicesController::class, 'updateStatus']);
 
         // Rutas de suscripción
         Route::get('subscription/status', [SubscriptionController::class, 'getStatus']);

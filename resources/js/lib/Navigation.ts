@@ -34,6 +34,7 @@ import {
     Shield,
     ShieldEllipsis,
     ShoppingCart,
+    Store,
     UserRoundCog,
     Users,
     Users2,
@@ -137,15 +138,20 @@ export const tenantNavItems: NavItem[] = [
         icon: LayoutDashboard,
     },
     {
+        title: 'POS',
+        href: route('tenant.sales.create'),
+        icon: Store,
+    },
+    {
         title: 'Finanzas',
         href: '#',
         icon: Banknote,
         subItems: [
-            // {
-            //     title: 'Facturación',
-            //     href: route('tenant.invoices.index'),
-            //     icon: Receipt,
-            // },
+            {
+                title: 'Facturación',
+                href: route('tenant.invoices.index'),
+                icon: Receipt,
+            },
             {
                 title: 'Plan de cuentas', 
                 href: route('tenant.chart-of-accounts.index'),
@@ -183,22 +189,17 @@ export const tenantNavItems: NavItem[] = [
                 href: route('tenant.customers.index'),
                 icon: Users,
             },
-            // {
-            //     title: 'ClientesNuevos',
-            //     href: route('customers.index'),
-            //     icon: Users,
-            // },
             {
                 title: 'Ventas',
                 href: route('tenant.sales.index'),
                 icon: ShoppingCart,
             },
-            { title: 'Leads', href: '/crm/leads',
-                icon: ListChecks, },
-            {
-                title: 'Pipeline', href: '/crm/pipeline',
-                icon: ClipboardList,
-            },
+            // { title: 'Leads', href: '/crm/leads',
+            //     icon: ListChecks, },
+            // {
+            //     title: 'Pipeline', href: '/crm/pipeline',
+            //     icon: ClipboardList,
+            // },
             // { title: 'Tareas y Seguimiento', href: '/crm/tareas',
             //     icon: ActivitySquare, },
             // { title: "Facturación SRI", href: "/facturacion", icon: FileSpreadsheet, },
@@ -209,36 +210,36 @@ export const tenantNavItems: NavItem[] = [
         href: '#',
         icon: Boxes,
         subItems: [
-            // {
-            //     title: 'Productos',
-            //     href: route('tenant.products.index'),
-            //     icon: Package,
-            // },
+            {
+                title: 'Productos',
+                href: route('tenant.products.index'),
+                icon: Package,
+            },
             {
                 title: 'Categorías',
                 href: route('tenant.categories.index'),
                 icon: Folder,
             },
-            {
-                title: 'Ordenes de Compra', href: '/inventory/purchase-orders',
-                icon: FileClock,
-            },
-            {
-                title: 'Gestión de inventario', href: '/inventory/inventory-management',
-                icon: FileClock,
-            },
-            {
-                title: 'Proveedores', href: '/inventory/providers-management',
-                icon: Handshake,
-            },
-            {
-                title: 'Gestión de almacenes', href: '/inventory/warehouse-management',
-                icon: ClipboardList,
-            },
-            {
-                title: 'Movimientos de existencias', href: '/inventory/stock-movements',
-                icon: ClipboardList,
-            },
+            // {
+            //     title: 'Ordenes de Compra', href: '/inventory/purchase-orders',
+            //     icon: FileClock,
+            // },
+            // {
+            //     title: 'Gestión de inventario', href: '/inventory/inventory-management',
+            //     icon: FileClock,
+            // },
+            // {
+            //     title: 'Proveedores', href: '/inventory/providers-management',
+            //     icon: Handshake,
+            // },
+            // {
+            //     title: 'Gestión de almacenes', href: '/inventory/warehouse-management',
+            //     icon: ClipboardList,
+            // },
+            // {
+            //     title: 'Movimientos de existencias', href: '/inventory/stock-movements',
+            //     icon: ClipboardList,
+            // },
         ],
     },
     {
@@ -246,74 +247,74 @@ export const tenantNavItems: NavItem[] = [
         href: '#',
         icon: FactoryIcon,
         subItems: [
-            {
-                title: 'Órdenes de producción', href: '/produccion/ordenes',
-                icon: FileText,
-            },
-            {
-                title: 'MRP', href: '/produccion/mrp',
-                icon: BarChart3,
-            },
-            {
-                title: 'Control de procesos', href: '/produccion/process-control',
-                icon: Warehouse,
-            },
-            {
-                title: 'Centros de trabajo', href: '/produccion/work-centers',
-                icon: Warehouse,
-            },
-            {
-                title: 'Calidad', href: '/produccion/quality-control',
-                icon: ListChecks,
-            },
+            // {
+            //     title: 'Órdenes de producción', href: '/produccion/ordenes',
+            //     icon: FileText,
+            // },
+            // {
+            //     title: 'MRP', href: '/produccion/mrp',
+            //     icon: BarChart3,
+            // },
+            // {
+            //     title: 'Control de procesos', href: '/produccion/process-control',
+            //     icon: Warehouse,
+            // },
+            // {
+            //     title: 'Centros de trabajo', href: '/produccion/work-centers',
+            //     icon: Warehouse,
+            // },
+            // {
+            //     title: 'Calidad', href: '/produccion/quality-control',
+            //     icon: ListChecks,
+            // },
         ],
     },
-    {
-        title: 'RRHH',
-        href: '#',
-        icon: UsersIcon,
-        subItems: [
-            {
-                title: 'Empleados', href: '/rrhh/empleados',
-                icon: Users2,
-            },
-            {
-                title: 'Cargos y roles', href: '/rrhh/roles',
-                icon: UserRoundCog,
-            },
-            {
-                title: 'Asistencia', href: '/rrhh/asistencia',
-                icon: FileClock,
-            },
-            {
-                title: 'KPIs', href: '/rrhh/kpis',
-                icon: BarChart3,
-            },
-        ],
-    },
-    {
-        title: 'Reportes BI',
-        href: '#',
-        icon: ChartColumnStackedIcon,
-        subItems: [
-            {
-                title: 'Dashboard Financiero', href: '/bi/finanzas',
-                icon: BarChart3,
-            },
-            {
-                title: 'Dashboard de Ventas', href: '/bi/ventas',
-                icon: BarChart3,
-            },
-            {
-                title: 'Inventario & Logística', href: '/bi/inventario',
-                icon: BarChart3,
-            },
-            {
-                title: 'Recursos Humanos', href: '/bi/rrhh',
-                icon: BarChart3,
-            },
-        ],
-    },
+    // {
+    //     title: 'RRHH',
+    //     href: '#',
+    //     icon: UsersIcon,
+    //     subItems: [
+    //         {
+    //             title: 'Empleados', href: '/rrhh/empleados',
+    //             icon: Users2,
+    //         },
+    //         {
+    //             title: 'Cargos y roles', href: '/rrhh/roles',
+    //             icon: UserRoundCog,
+    //         },
+    //         {
+    //             title: 'Asistencia', href: '/rrhh/asistencia',
+    //             icon: FileClock,
+    //         },
+    //         {
+    //             title: 'KPIs', href: '/rrhh/kpis',
+    //             icon: BarChart3,
+    //         },
+    //     ],
+    // },
+    // {
+    //     title: 'Reportes BI',
+    //     href: '#',
+    //     icon: ChartColumnStackedIcon,
+    //     subItems: [
+    //         {
+    //             title: 'Dashboard Financiero', href: '/bi/finanzas',
+    //             icon: BarChart3,
+    //         },
+    //         {
+    //             title: 'Dashboard de Ventas', href: '/bi/ventas',
+    //             icon: BarChart3,
+    //         },
+    //         {
+    //             title: 'Inventario & Logística', href: '/bi/inventario',
+    //             icon: BarChart3,
+    //         },
+    //         {
+    //             title: 'Recursos Humanos', href: '/bi/rrhh',
+    //             icon: BarChart3,
+    //         },
+    //     ],
+    // },
     {
         title: 'Suscripción',
         href: route('subscription.index'),

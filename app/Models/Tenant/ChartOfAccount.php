@@ -12,37 +12,35 @@ class ChartOfAccount extends Model
     use HasFactory;
 
     protected $fillable = [
-        'company_id', 'code', 'name', 'account_type', 'account_subtype',
-        'parent_code', 'level', 'is_detail', 'initial_balance',
-        'debit_balance', 'credit_balance', 'active', 'credit_debit_type'
+        'code',
+        'name',
+        'financial_statement_type',
+        'financial_statement_type_original',
+        'nature',
+        'parent_id',
+        'level',
+        'has_children',
+        'active',
     ];
 
     protected $casts = [
-        'is_detail' => 'boolean',
+        'has_children' => 'boolean',
         'active' => 'boolean',
-        'initial_balance' => 'decimal:2',
-        'debit_balance' => 'decimal:2',
-        'credit_balance' => 'decimal:2',
     ];
-
-    public function company(): BelongsTo
-    {
-        return $this->belongsTo(Company::class);
-    }
 
     public function parent(): BelongsTo
     {
-        return $this->belongsTo(ChartOfAccount::class, 'parent_code', 'code');
+        return $this->belongsTo(ChartOfAccount::class, 'parent_id');
     }
 
     public function children(): HasMany
     {
-        return $this->hasMany(ChartOfAccount::class, 'parent_code', 'code');
+        return $this->hasMany(ChartOfAccount::class, 'parent_id');
     }
 
-    public function journalEntryDetails(): HasMany
+    public function journalEntryLines(): HasMany
     {
-        return $this->hasMany(JournalEntryDetail::class, 'account_code', 'code');
+        return $this->hasMany(JournalEntryLine::class, 'account_id');
     }
 
     public function getCurrentBalanceAttribute(): float
@@ -51,29 +49,28 @@ class ChartOfAccount extends Model
     }
 
     // Accessor para mostrar el tipo de crédito/débito de manera legible
-    public function getCreditDebitDisplayAttribute(): string
+    public function getNatureDisplayAttribute(): string
     {
-        switch ($this->credit_debit_type) {
+        switch ($this->nature) {
             case 'debit':
                 return 'Débito';
             case 'credit':
                 return 'Crédito';
-            case 'neutral':
             default:
-                return 'Neutral';
+                return 'debit';
         }
     }
 
     // Accessor para mostrar el tipo de estado financiero de manera legible
     public function getFinancialStatementTypeDisplayAttribute(): string
     {
-        return match ($this->account_subtype) {
+        return match ($this->financial_statement_type) {
             'CUENTAS DE ORDEN' => 'Cuentas de Orden',
             'ESTADO DE CAMBIOS EN EL PATRIMONIO' => 'Estado de Cambios en el Patrimonio',
             'ESTADO DE FLUJO DE EFECTIVO' => 'Estado de Flujo de Efectivo',
             'ESTADO DE SITUACION' => 'Estado de Situación',
             'ESTADO DE RESULTADOS' => 'Estado de Resultados',
-            default => $this->account_subtype ?? 'No especificado'
+            default => $this->financial_statement_type ?? 'No especificado'
         };
     }
 }

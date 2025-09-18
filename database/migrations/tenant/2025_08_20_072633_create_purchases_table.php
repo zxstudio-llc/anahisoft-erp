@@ -10,9 +10,7 @@ return new class extends Migration
     {
         Schema::create('purchases', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('company_id')->constrained()->onDelete('cascade');
             $table->foreignId('supplier_id')->constrained()->onDelete('cascade');
-            $table->foreignId('provider_id')->constrained('providers');
             $table->string('document_type', 2)->default('01'); // 01=Invoice, 03=Liquidation
             $table->string('establishment_code', 3);
             $table->string('emission_point', 3);

@@ -11,10 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('chart_of_accounts', function (Blueprint $table) {
-            $table->enum('credit_debit_type', ['debit', 'credit', 'neutral'])
-                  ->default('neutral')
-                  ->after('is_detail');
+        Schema::table('products', function (Blueprint $table) {
+            $table->decimal('igv_percentage', 5, 2)->default(15)->after('has_igv');
         });
     }
 
@@ -23,8 +21,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('chart_of_accounts', function (Blueprint $table) {
-            $table->dropColumn('credit_debit_type');
+        Schema::table('products', function (Blueprint $table) {
+            $table->dropColumn('igv_percentage');
         });
     }
-}; 
+};

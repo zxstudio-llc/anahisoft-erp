@@ -20,31 +20,46 @@ import {
     X
 } from 'lucide-react';
 
+interface Customer {
+    id: number;
+    business_name: string;
+    email?: string;
+    phone?: string;
+    identification: string;
+}
+
+interface Product {
+    id: number;
+    name: string;
+}
+
+interface SaleDetail {
+    id: number;
+    product?: Product | null;
+    quantity: number;
+    unit_price: number;
+    subtotal: number;
+    iva: number;
+    ice: number;
+    total: number;
+}
+
 interface Sale {
     id: number;
-    document_number: string;
-    document_type: string;
+    type: 'sale' | 'purchase';
+    document_type: '01' | '03';
     document_type_name: string;
     total: number;
-    subtotal: number;
-    igv: number;
-    sunat_state: string;
-    client: {
-        id: number;
-        name: string;
-        email?: string;
-        phone?: string;
-        document_number: string;
-    };
-    products: Array<{
-        id: number;
-        name: string;
-        pivot: {
-            quantity: number;
-            price: number;
-            total: number;
-        };
-    }>;
+    subtotal_12: number;
+    subtotal_0: number;
+    iva: number;
+    ice: number;
+    status: 'draft' | 'issued' | 'authorized' | 'rejected' | 'canceled';
+    customer?: Customer | null;
+    details: SaleDetail[];
+    xml_path?: string | null;
+    pdf_path?: string | null;
+    cdr_path?: string | null;
 }
 
 interface SaleSuccessModalProps {
@@ -65,11 +80,11 @@ export default function SaleSuccessModal({
     canDownloadCdr
 }: SaleSuccessModalProps) {
     const [emailData, setEmailData] = useState({
-        email: sale?.client?.email || '',
+        email: sale?.customer?.email || '',
         message: ''
     });
     const [whatsappData, setWhatsappData] = useState({
-        phone: sale?.client?.phone || '',
+        phone: sale?.customer?.phone || '',
         message: ''
     });
     const [isLoading, setIsLoading] = useState(false);
@@ -86,7 +101,10 @@ export default function SaleSuccessModal({
             const url = window.URL.createObjectURL(new Blob([responseData]));
             const link = document.createElement('a');
             link.href = url;
-            link.setAttribute('download', `comprobante-${sale.document_number}.${type === 'cdr' ? 'zip' : type}`);
+            
+            // Generate document number for filename
+            const documentNumber = `${sale.document_type}-${sale.id}`;
+            link.setAttribute('download', `comprobante-${documentNumber}.${type === 'cdr' ? 'zip' : type}`);
             document.body.appendChild(link);
             link.click();
             link.remove();
@@ -145,6 +163,40 @@ export default function SaleSuccessModal({
 
     if (!sale) return null;
 
+    // Helper function to get status badge variant
+    const getStatusVariant = (status: string) => {
+        switch (status) {
+            case 'authorized':
+            case 'issued':
+                return 'default';
+            case 'draft':
+                return 'secondary';
+            case 'rejected':
+            case 'canceled':
+                return 'destructive';
+            default:
+                return 'secondary';
+        }
+    };
+
+    // Helper function to get status display text
+    const getStatusText = (status: string) => {
+        switch (status) {
+            case 'authorized':
+                return 'AUTORIZADO';
+            case 'issued':
+                return 'EMITIDO';
+            case 'draft':
+                return 'BORRADOR';
+            case 'rejected':
+                return 'RECHAZADO';
+            case 'canceled':
+                return 'CANCELADO';
+            default:
+                return status.toUpperCase();
+        }
+    };
+
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -156,7 +208,7 @@ export default function SaleSuccessModal({
                         <div>
                             <DialogTitle className="text-xl">¡Venta Procesada Exitosamente!</DialogTitle>
                             <p className="text-sm text-muted-foreground mt-1">
-                                {sale.document_type_name} {sale.document_number}
+                                {sale.document_type_name} #{sale.id}
                             </p>
                         </div>
                         <Button
@@ -177,37 +229,62 @@ export default function SaleSuccessModal({
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <p className="text-sm text-muted-foreground">Cliente</p>
-                                    <p className="font-medium">{sale.client.name}</p>
-                                    <p className="text-sm text-muted-foreground">{sale.client.document_number}</p>
+                                    <p className="font-medium">{sale.customer?.business_name || 'N/A'}</p>
+                                    <p className="text-sm text-muted-foreground">{sale.customer?.identification || 'N/A'}</p>
                                 </div>
                                 <div className="text-right">
                                     <p className="text-sm text-muted-foreground">Total</p>
                                     <p className="text-2xl font-bold text-primary">{formatCurrency(sale.total)}</p>
                                     <Badge 
-                                        variant={sale.sunat_state === 'ACEPTADO' ? 'default' : 'secondary'}
+                                        variant={getStatusVariant(sale.status)}
                                         className="mt-1"
                                     >
-                                        {sale.sunat_state}
+                                        {getStatusText(sale.status)}
                                     </Badge>
                                 </div>
                             </div>
                             
                             <Separator className="my-3" />
                             
-                            <div className="grid grid-cols-3 gap-4 text-sm">
+                            <div className="grid grid-cols-4 gap-4 text-sm">
                                 <div>
-                                    <p className="text-muted-foreground">Subtotal</p>
-                                    <p className="font-medium">{formatCurrency(sale.subtotal)}</p>
+                                    <p className="text-muted-foreground">Subtotal 15%</p>
+                                    <p className="font-medium">{formatCurrency(sale.subtotal_12)}</p>
                                 </div>
                                 <div>
-                                    <p className="text-muted-foreground">IGV</p>
-                                    <p className="font-medium">{formatCurrency(sale.igv)}</p>
+                                    <p className="text-muted-foreground">Subtotal 0%</p>
+                                    <p className="font-medium">{formatCurrency(sale.subtotal_0)}</p>
+                                </div>
+                                <div>
+                                    <p className="text-muted-foreground">IVA</p>
+                                    <p className="font-medium">{formatCurrency(sale.iva)}</p>
                                 </div>
                                 <div>
                                     <p className="text-muted-foreground">Total</p>
                                     <p className="font-medium">{formatCurrency(sale.total)}</p>
                                 </div>
                             </div>
+
+                            {/* Mostrar detalles de productos */}
+                            {sale.details && sale.details.length > 0 && (
+                                <>
+                                    <Separator className="my-3" />
+                                    <div>
+                                        <p className="text-sm text-muted-foreground mb-2">Productos/Servicios</p>
+                                        <div className="space-y-2">
+                                            {sale.details.map((detail) => (
+                                                <div key={detail.id} className="flex justify-between items-center text-sm">
+                                                    <div>
+                                                        <span className="font-medium">{detail.product?.name || 'Producto sin nombre'}</span>
+                                                        <span className="text-muted-foreground ml-2">x{detail.quantity}</span>
+                                                    </div>
+                                                    <span className="font-medium">{formatCurrency(detail.total)}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </>
+                            )}
                         </CardContent>
                     </Card>
 
@@ -298,7 +375,7 @@ export default function SaleSuccessModal({
                                 <Input
                                     id="phone"
                                     type="tel"
-                                    placeholder="+51 999 999 999"
+                                    placeholder="+593 999 999 999"
                                     value={whatsappData.phone}
                                     onChange={(e) => setWhatsappData(prev => ({ ...prev, phone: e.target.value }))}
                                 />

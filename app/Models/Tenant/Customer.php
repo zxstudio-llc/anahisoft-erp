@@ -12,9 +12,9 @@ class Customer extends Model
     use HasFactory;
 
     protected $fillable = [
-        'company_id', 'identification_type', 'identification', 'business_name',
-        'trade_name', 'email', 'phone', 'address', 'special_taxpayer',
-        'accounting_required', 'credit_limit', 'active'
+        'identification_type', 'identification', 'business_name',
+        'trade_name', 'email', 'phone', 'address', 'district', 'province', 'department', 'ubigeo',
+        'special_taxpayer', 'accounting_required', 'credit_limit', 'active'
     ];
 
     protected $casts = [
@@ -23,11 +23,6 @@ class Customer extends Model
         'active' => 'boolean',
         'credit_limit' => 'decimal:2',
     ];
-
-    public function company(): BelongsTo
-    {
-        return $this->belongsTo(Company::class);
-    }
 
     public function invoices(): HasMany
     {

@@ -5,7 +5,7 @@ export interface DashboardData {
             previous: number;
             change: number;
         };
-        clients: {
+        customers: {
             total: number;
             new: number;
             change: number;
@@ -35,22 +35,32 @@ export interface DashboardData {
     recentActivity: {
         invoices: Array<{
             id: number;
-            client_name: string;
+            number: string;
+            customer_name: string;
+            date: string;
             total: number;
             status: string;
-            date: string;
+            issue_date: string;
         }>;
-        clients: Array<{
+        customers: Array<{
             id: number;
-            name: string;
-            document_number: string;
+            business_name: string;
+            identification: string;
+            trade_name: string | null;
+            email: string | null;
+            phone: string | null;
+            active: boolean;
             created_at: string;
         }>;
         products: Array<{
             id: number;
+            code: string;
             name: string;
             price: number;
+            stock: number;
+            active: boolean;
             created_at: string;
+            updated_at: string;
         }>;
     };
 } 

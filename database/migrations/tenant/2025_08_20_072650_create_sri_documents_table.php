@@ -13,7 +13,6 @@ return new class extends Migration
     {
         Schema::create('sri_documents', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('company_id')->constrained()->onDelete('cascade');
             $table->morphs('documentable'); // Can be invoice, purchase, withholding
             $table->string('document_type', 2);
             $table->string('access_key', 49)->unique();

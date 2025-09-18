@@ -23,7 +23,15 @@ Route::middleware('guest')->group(function () {
     Route::post('login', [AuthenticatedSessionController::class, 'store']);
 
     Route::get('validate', [CentralLoginController::class, 'create'])->name('validate');
-    Route::post('validate', [CentralLoginController::class, 'store']);
+    // Route::post('validate', [CentralLoginController::class, 'store']);
+
+    // ✅ NUEVA RUTA: Validación de RUC vía GET
+Route::get('/validate-ruc', [CentralLoginController::class, 'validateRuc'])
+    ->name('validate.ruc');
+
+// // ✅ ALTERNATIVA: También via POST si prefieres
+// Route::post('/login', [CentralLoginController::class, 'validateRuc'])
+//     ->name('validate.ruc.post');
 
     Route::get('forgot-password', [PasswordResetLinkController::class, 'create'])
         ->name('password.request');

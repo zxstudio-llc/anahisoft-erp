@@ -26,7 +26,6 @@ type RegisterForm = {
     plan_id: number | undefined;
     billing_period: string;
     
-    // Campos SUNAT completos
     identification: string;        // RUC (ya existe como 'ruc' pero lo agregamos por consistencia)
     business_name: string;         // Razón social (ya existe como company_name)
     legal_name: string;            // Nombre legal (nuevo)
@@ -111,7 +110,7 @@ export default function Register({ freePlan, selectedPlan, app_domain, billing_p
         plan_id: selectedPlan?.id || freePlan?.id || undefined,
         billing_period: billing_period,
         
-        // Campos SUNAT completos
+        // Campos completos
         identification: '', // Equivalente a ruc
         business_name: '', // Equivalente a company_name
         legal_name: '',
@@ -120,7 +119,7 @@ export default function Register({ freePlan, selectedPlan, app_domain, billing_p
         taxpayer_status: '', // Equivalente a condition
         head_office_address: '', // Equivalente a address
         
-        // Estructuras anidadas SUNAT
+        // Estructuras anidadas 
         taxpayer_dates: {
             start_date: '', // Equivalente a registration_date
         },
@@ -132,7 +131,7 @@ export default function Register({ freePlan, selectedPlan, app_domain, billing_p
             parish: '',
         }],
         
-        // Campos SUNAT adicionales
+        // Campos adicionales
         trade_name: '',
         emission_system: '',
         accounting_system: '',
@@ -410,59 +409,82 @@ export default function Register({ freePlan, selectedPlan, app_domain, billing_p
         if (ruc.length !== 13) return;
     
         setValidatingRuc(true);
-        // setRucValidated(false);
         clearErrors('ruc');
     
         try {
-            // Petición directa con Axios
-            const response = await axios.get<RegisterForm>(`/v1/sris/${ruc}`, {
-                withCredentials: true, // Necesario para cookies de sesión
+            const response = await axios.get<any>(`/v1/sris/${ruc}`, {
+                withCredentials: true,
                 headers: {
                     'Accept': 'application/json',
                     'X-Requested-With': 'XMLHttpRequest'
                 }
             });
     
-            const result = response.data; // Extraemos los datos de la respuesta
+            const result = response.data;
+            console.log('Respuesta del SRI:', result);
     
             if (result.success && result.data) {
-                const addressData = parseAddress(result.data?.address ?? result.data?.head_office_address);
-
+                const sriData = result.data;
+                const addressData = parseAddress(sriData?.address ?? sriData?.head_office_address ?? '');
+    
+                // ✅ Mapeo corregido de campos
                 setData((prevData) => ({
                     ...prevData,
-
+                    // Campos básicos
                     ruc: ruc,
-                    domain: cleanDomainValue(result.data?.business_name ?? ''),
-                    company_name: result.data?.business_name ?? '',
-                    status: result.data?.status ?? '',
-                    condition: result.data?.condition ?? '',
-                    address: result.data?.address ?? result.data?.head_office_address,
+                    company_name: sriData?.business_name ?? sriData?.businessName ?? '',
+                    domain: cleanDomainValue(sriData?.business_name ?? sriData?.businessName ?? ''),
+                    
+                    // Campos principales del SRI
+                    business_name: sriData?.business_name ?? sriData?.businessName ?? '',
+                    trade_name: sriData?.trade_name ?? sriData?.tradeName ?? sriData?.business_name ?? sriData?.businessName ?? '',
+                    legal_name: sriData?.legal_name ?? sriData?.legalName ?? '',
+                    commercial_name: sriData?.commercial_name ?? sriData?.commercialName ?? '',
+                    status: sriData?.status ?? '',
+                    taxpayer_status: sriData?.taxpayer_status ?? sriData?.condition ?? '',
+                    head_office_address: sriData?.head_office_address ?? sriData?.address ?? '',
+                    
+                    // Campos de ubicación
                     province: addressData.province,
                     department: addressData.department,
                     district: addressData.district,
-                    registration_date: result.data?.registrationDate ?? '',
-                    trade_name: result.data?.tradeName ?? result.data?.business_name,
-                    emission_system: result.data?.emissionSystem ?? '',
-                    accounting_system: result.data?.accountingSystem ?? '',
-                    foreign_trade_activity: result.data?.foreignTradeActivity ?? '',
-                    economic_activities: result.data?.economicActivities ?? [],
-                    payment_vouchers: result.data?.paymentVouchers ?? [],
-                    electronic_systems: result.data?.electronicSystems ?? [],
-                    electronic_emission_date: result.data?.electronicEmissionDate ?? '',
-                    electronic_vouchers: result.data?.electronicVouchers ?? [],
-                    ple_date: result.data?.pleDate ?? '',
-                    registries: result.data?.registries ?? [],
-                    withdrawal_date: result.data?.withdrawalDate ?? '',
-                    profession: result.data?.profession ?? '',
-                    ubigeo: result.data?.ubigeo ?? '',
-                    capital: typeof result.data?.capital === 'number' ? result.data.capital : 0,
-
+                    
+                    // Fechas
+                    registration_date: sriData?.registration_date ?? sriData?.registrationDate ?? '',
+                    taxpayer_dates: {
+                        start_date: sriData?.registration_date ?? sriData?.registrationDate ?? ''
+                    },
+                    
+                    // Campos adicionales del SRI
+                    emission_system: sriData?.emission_system ?? sriData?.emissionSystem ?? '',
+                    accounting_system: sriData?.accounting_system ?? sriData?.accountingSystem ?? '',
+                    foreign_trade_activity: sriData?.foreign_trade_activity ?? sriData?.foreignTradeActivity ?? '',
+                    economic_activities: sriData?.economic_activities ?? sriData?.economicActivities ?? [],
+                    payment_vouchers: sriData?.payment_vouchers ?? sriData?.paymentVouchers ?? [],
+                    electronic_systems: sriData?.electronic_systems ?? sriData?.electronicSystems ?? [],
+                    electronic_emission_date: sriData?.electronic_emission_date ?? sriData?.electronicEmissionDate ?? '',
+                    electronic_vouchers: sriData?.electronic_vouchers ?? sriData?.electronicVouchers ?? [],
+                    ple_date: sriData?.ple_date ?? sriData?.pleDate ?? '',
+                    registries: sriData?.registries ?? [],
+                    withdrawal_date: sriData?.withdrawal_date ?? sriData?.withdrawalDate ?? '',
+                    profession: sriData?.profession ?? '',
+                    ubigeo: sriData?.ubigeo ?? '',
+                    capital: typeof sriData?.capital === 'number' ? sriData.capital : 0,
+                    
+                    // Campos alias para compatibilidad
+                    condition: sriData?.condition ?? sriData?.taxpayer_status ?? '',
+                    address: sriData?.address ?? sriData?.head_office_address ?? '',
+                    identification: ruc,
                 }));
+                
                 setRucValidated(true);
+                console.log('RUC validado correctamente');
             } else {
                 setData((prevData) => ({
                     ...prevData,
                     company_name: '',
+                    business_name: '',
+                    trade_name: '',
                 }));
                 setError('ruc', result.error || 'Error validando RUC');
             }
@@ -478,6 +500,12 @@ export default function Register({ freePlan, selectedPlan, app_domain, billing_p
             }
             
             setError('ruc', errorMessage);
+            setData((prevData) => ({
+                ...prevData,
+                company_name: '',
+                business_name: '',
+                trade_name: '',
+            }));
         } finally {
             setValidatingRuc(false);
         }

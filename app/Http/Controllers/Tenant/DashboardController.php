@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\Tenant;
 
 use App\Http\Controllers\Controller;
-use App\Models\Tenant\Client;
+use App\Models\Tenant\Customer;
 use App\Models\Tenant\Products;
-use App\Models\Tenant\Invoices;
+use App\Models\Tenant\Invoice;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -28,10 +28,10 @@ class DashboardController extends Controller
         $sixMonthsAgo = $now->copy()->subMonths(6)->startOfMonth();
 
         // Calcular ventas del mes actual y anterior
-        $currentMonthSales = Invoices::whereBetween('issue_date', [$startOfMonth, $endOfMonth])
+        $currentMonthSales = Invoice::whereBetween('issue_date', [$startOfMonth, $endOfMonth])
             ->where('status', 'paid')
             ->sum('total');
-        $lastMonthSales = Invoices::whereBetween('issue_date', [$startOfLastMonth, $endOfLastMonth])
+        $lastMonthSales = Invoice::whereBetween('issue_date', [$startOfLastMonth, $endOfLastMonth])
             ->where('status', 'paid')
             ->sum('total');
         
@@ -40,14 +40,14 @@ class DashboardController extends Controller
             ? (($currentMonthSales - $lastMonthSales) / $lastMonthSales) * 100 
             : 100;
 
-        // Obtener estadísticas de clientes
-        $totalClients = Client::count();
-        $newClients = Client::where('created_at', '>=', $startOfMonth)->count();
-        $lastMonthClients = Client::where('created_at', '>=', $startOfLastMonth)
+        // Obtener estadísticas de customer
+        $totalCustomers = Customer::count();
+        $newCustomers = Customer::where('created_at', '>=', $startOfMonth)->count();
+        $lastMonthCustomers = Customer::where('created_at', '>=', $startOfLastMonth)
             ->where('created_at', '<', $startOfMonth)
             ->count();
-        $clientsChange = $lastMonthClients > 0 
-            ? (($newClients - $lastMonthClients) / $lastMonthClients) * 100 
+        $customersChange = $lastMonthCustomers > 0 
+            ? (($newCustomers - $lastMonthCustomers) / $lastMonthCustomers) * 100 
             : 100;
 
         // Obtener estadísticas de productos
@@ -61,17 +61,17 @@ class DashboardController extends Controller
             : 100;
 
         // Obtener estadísticas de facturas
-        $totalInvoices = Invoices::count();
-        $pendingInvoices = Invoices::where('status', 'pending')->count();
-        $paidInvoices = Invoices::where('status', 'paid')->count();
-        $currentMonthInvoices = Invoices::whereBetween('issue_date', [$startOfMonth, $endOfMonth])->count();
-        $lastMonthInvoices = Invoices::whereBetween('issue_date', [$startOfLastMonth, $endOfLastMonth])->count();
+        $totalInvoices = Invoice::count();
+        $pendingInvoices = Invoice::where('status', 'pending')->count();
+        $paidInvoices = Invoice::where('status', 'paid')->count();
+        $currentMonthInvoices = Invoice::whereBetween('issue_date', [$startOfMonth, $endOfMonth])->count();
+        $lastMonthInvoices = Invoice::whereBetween('issue_date', [$startOfLastMonth, $endOfLastMonth])->count();
         $invoicesChange = $lastMonthInvoices > 0 
             ? (($currentMonthInvoices - $lastMonthInvoices) / $lastMonthInvoices) * 100 
             : 100;
 
         // Obtener datos para el gráfico de ventas por mes
-        $salesByMonth = Invoices::where('issue_date', '>=', $sixMonthsAgo)
+        $salesByMonth = Invoice::where('issue_date', '>=', $sixMonthsAgo)
             ->where('status', 'paid')
             ->select(
                 DB::raw('to_char(issue_date, \'Mon\') as month'),
@@ -89,7 +89,7 @@ class DashboardController extends Controller
             });
 
         // Obtener datos para el gráfico de facturas por estado
-        $invoicesByStatus = Invoices::select('status', DB::raw('count(*) as total'))
+        $invoicesByStatus = Invoice::select('status', DB::raw('count(*) as total'))
             ->groupBy('status')
             ->get()
             ->map(function ($item) {
@@ -100,29 +100,41 @@ class DashboardController extends Controller
             });
 
         // Obtener actividad reciente
-        $recentInvoices = Invoices::with('client')
+        $recentInvoices = Invoice::with('customer')
             ->orderBy('issue_date', 'desc')
             ->take(5)
             ->get()
             ->map(function ($invoice) {
+                $customer = $invoice->customer;
+                if ($customer) {
+                    // Formatear RUC / identificación según tipo
+                    $customer->formatted_identification = $customer->identification_type . ' - ' . $customer->identification;
+                }        
                 return [
                     'id' => $invoice->id,
-                    'client_name' => $invoice->client->name,
+                    'customer' => $customer,
+                    'establishment_code' => $invoice->establishment_code,
+                    'emission_point' => $invoice->emission_point,
+                    'sequential' => $invoice->sequential,
                     'total' => $invoice->total,
                     'status' => $invoice->status,
                     'issue_date' => $invoice->issue_date
                 ];
             });
 
-        $recentClients = Client::orderBy('created_at', 'desc')
+        $recentCustomers = Customer::orderBy('created_at', 'desc')
             ->take(5)
             ->get()
-            ->map(function ($client) {
+            ->map(function ($customer) {
                 return [
-                    'id' => $client->id,
-                    'name' => $client->name,
-                    'document_number' => $client->document_number,
-                    'created_at' => $client->created_at
+                    'id' => $customer->id,
+                    'identification' => $customer->identification,
+                    'business_name' => $customer->business_name,
+                    'trade_name' => $customer->trade_name,
+                    'phone' => $customer->phone,
+                    'email' => $customer->email,
+                    'active' => $customer->active,
+                    'created_at' => $customer->created_at
                 ];
             });
 
@@ -134,7 +146,11 @@ class DashboardController extends Controller
                     'id' => $product->id,
                     'name' => $product->name,
                     'price' => $product->price,
-                    'created_at' => $product->created_at
+                    'code' => $product->code,
+                    'stock' => $product->stock,
+                    'active' => $product->active,
+                    'created_at' => $product->created_at,
+                    'updated_at' => $product->updated_at,
                 ];
             });
 
@@ -146,10 +162,10 @@ class DashboardController extends Controller
                         'previous' => $lastMonthSales,
                         'change' => $salesChange
                     ],
-                    'clients' => [
-                        'total' => $totalClients,
-                        'new' => $newClients,
-                        'change' => $clientsChange
+                    'customers' => [
+                        'total' => $totalCustomers,
+                        'new' => $newCustomers,
+                        'change' => $customersChange
                     ],
                     'products' => [
                         'total' => $totalProducts,
@@ -169,7 +185,7 @@ class DashboardController extends Controller
                 ],
                 'recentActivity' => [
                     'invoices' => $recentInvoices,
-                    'clients' => $recentClients,
+                    'customers' => $recentCustomers,
                     'products' => $recentProducts
                 ]
             ]

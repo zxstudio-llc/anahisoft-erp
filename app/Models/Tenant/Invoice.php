@@ -4,51 +4,70 @@ namespace App\Models\Tenant;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Invoice extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
-    /**
-     * Los atributos que son asignables masivamente.
-     *
-     * @var array<int, string>
-     */
     protected $fillable = [
-        'client_id',
-        'date',
-        'due_date',
-        'number',
-        'series',
-        'currency',
-        'exchange_rate',
-        'subtotal',
-        'tax',
+        'type',
+        'customer_id',
+        'supplier_id',
+        'document_type',
+        'issue_date',
+        'establishment_code',
+        'emission_point',
+        'sequential',
+        'access_key',
+        'issue_date',
+        'period',
+        'subtotal_12',
+        'subtotal_0',
+        'subtotal_no_tax',
+        'subtotal_exempt',
+        'discount',
+        'ice',
+        'iva',
+        'tip',
         'total',
         'status',
-        'notes'
+        'xml_content',
+        'authorization_number',
+        'authorization_date',
     ];
 
-    /**
-     * Los atributos que deben ser convertidos a tipos nativos.
-     *
-     * @var array
-     */
     protected $casts = [
-        'date' => 'datetime',
-        'due_date' => 'datetime',
-        'exchange_rate' => 'float',
-        'subtotal' => 'float',
-        'tax' => 'float',
-        'total' => 'float'
+        'subtotal_12'     => 'float',
+        'subtotal_0'      => 'float',
+        'subtotal_no_tax' => 'float',
+        'subtotal_exempt' => 'float',
+        'discount'        => 'float',
+        'ice'             => 'float',
+        'iva'             => 'float',
+        'tip'             => 'float',
+        'total'           => 'float',
+        'issue_date'      => 'date',
+        'authorization_date' => 'datetime',
     ];
 
-    /**
-     * Obtiene el cliente asociado a la factura.
-     */
-    public function client(): BelongsTo
+    public function customer()
     {
-        return $this->belongsTo(Client::class);
+        return $this->belongsTo(Customer::class);
     }
-} 
+
+    public function supplier()
+    {
+        return $this->belongsTo(Supplier::class);
+    }
+
+    public function details()
+    {
+        return $this->hasMany(InvoiceDetail::class, 'invoice_id');
+    }
+
+    public function sriDocument()
+    {
+        return $this->morphOne(SriDocument::class, 'documentable');
+    }
+}

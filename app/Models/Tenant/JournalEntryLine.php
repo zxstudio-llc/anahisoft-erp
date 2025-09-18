@@ -28,8 +28,9 @@ class JournalEntryLine extends Model
         return $this->belongsTo(JournalEntry::class);
     }
 
+    // ✅ CAMBIO: Referenciar ChartOfAccount en lugar de Account
     public function account(): BelongsTo
     {
-        return $this->belongsTo(Account::class);
+        return $this->belongsTo(ChartOfAccount::class, 'account_id');
     }
 }

@@ -13,9 +13,7 @@ class ProductsController extends Controller
 {
     public function index()
     {
-        $products = Products::where('company_id', auth()->user()->company_id)
-            ->orderBy('name')
-            ->paginate(10);
+        $products = Products::orderBy('name')->paginate(10);
 
         return Inertia::render('Tenant/Products/Index', [
             'products' => $products
@@ -29,10 +27,7 @@ class ProductsController extends Controller
 
     public function store(StoreProductRequest $request)
     {
-        Products::create([
-            'company_id' => auth()->user()->company_id,
-            ...$request->validated()
-        ]);
+        Products::create($request->validated());
 
         return redirect()->route('products.index')
             ->with('success', 'Product created successfully');

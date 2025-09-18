@@ -10,7 +10,6 @@ return new class extends Migration
     {
         Schema::create('withholdings', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('company_id')->constrained()->onDelete('cascade');
             $table->morphs('withholdable'); // Can be purchase or invoice
             $table->string('document_type', 2)->default('07'); // 07=Withholding
             $table->string('establishment_code', 3);

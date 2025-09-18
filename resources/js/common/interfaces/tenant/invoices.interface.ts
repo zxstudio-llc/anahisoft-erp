@@ -1,10 +1,11 @@
 export interface Invoice {
     id: number;
     number: string;
-    client_name: string;
+    customer_name: string;
     date: string;
     total: number;
     status: string;
+    issue_date: string;
 }
 
 export interface Filters {

@@ -2,13 +2,12 @@
 
 use App\Http\Controllers\Tenant\ApiKeyController;
 use App\Http\Controllers\Tenant\CategoryController;
-use App\Http\Controllers\Tenant\ClientController;
 use App\Http\Controllers\Tenant\DashboardController;
 use App\Http\Controllers\Tenant\DocumentValidationController;
 use App\Http\Controllers\Tenant\InvoiceController;
 use App\Http\Controllers\Tenant\ProductController;
 use App\Http\Controllers\Tenant\RoleController;
-use App\Http\Controllers\Tenant\SaleController;
+use App\Http\Controllers\Tenant\InvoiceSaleController;
 use App\Http\Controllers\Tenant\UserController;
 
 use App\Http\Controllers\Tenant\CustomersController;
@@ -17,7 +16,6 @@ use App\Http\Controllers\Tenant\ProductsController;
 use App\Http\Controllers\Tenant\InvoicesController;
 use App\Http\Controllers\Tenant\PurchaseController;
 use App\Http\Controllers\Tenant\JournalEntryController;
-use App\Http\Controllers\Tenant\CompaniesController;
 use App\Http\Controllers\Tenant\WithholdingsController;
 use App\Http\Controllers\Tenant\SriDocumentsController;
 use App\Http\Controllers\Tenant\ChartOfAccountsController;
@@ -184,14 +182,11 @@ Route::middleware([
         //     Route::get('/rrhh', fn () => Inertia::render('Tenant/PoweBi/RRHH'));
         // });
 
-        // Rutas para clientes
-        Route::resource('clients', ClientController::class, ['as' => 'tenant']);
-
         // Rutas para categorías
         Route::resource('categories', CategoryController::class, ['as' => 'tenant']);
 
         // Rutas para productos
-        Route::resource('products', ProductController::class, ['as' => 'tenant']);
+        // Route::resource('products', ProductController::class, ['as' => 'tenant']);
 
         // Rutas para proveedores
         Route::resource('providers', \App\Http\Controllers\Tenant\ProviderController::class, ['as' => 'tenant']);
@@ -227,12 +222,12 @@ Route::middleware([
         });
 
         // Rutas para ventas
-        Route::resource('sales', SaleController::class, ['as' => 'tenant']);
+        Route::resource('sales', InvoiceSaleController::class, ['as' => 'tenant']);
         Route::prefix('sales')->name('tenant.sales.')->group(function () {
-            Route::post('{sale}/generate-electronic', [SaleController::class, 'generateElectronic'])->name('generate-electronic');
-            Route::get('{sale}/download-xml', [SaleController::class, 'downloadXml'])->name('download-xml');
-            Route::get('{sale}/download-cdr', [SaleController::class, 'downloadCdr'])->name('download-cdr');
-            Route::get('{sale}/download-pdf', [SaleController::class, 'downloadPdf'])->name('download-pdf');
+            Route::post('{sale}/generate-electronic', [InvoiceSaleController::class, 'generateElectronic'])->name('generate-electronic');
+            Route::get('{sale}/download-xml', [InvoiceSaleController::class, 'downloadXml'])->name('download-xml');
+            Route::get('{sale}/download-cdr', [InvoiceSaleController::class, 'downloadCdr'])->name('download-cdr');
+            Route::get('{sale}/download-pdf', [InvoiceSaleController::class, 'downloadPdf'])->name('download-pdf');
         });
 
         // Ruta para la página de suscripción expirada (accesible sin autenticación y sin verificación de suscripción)
@@ -259,6 +254,7 @@ Route::middleware([
         Route::get('settings/password', [PasswordController::class, 'edit'])->name('settings.password.edit');
         Route::put('settings/password', [PasswordController::class, 'update'])->name('settings.password.update');
         Route::post('/settings/test-sunat-connection', [SettingsController::class, 'testSunatConnection'])->name('settings.test-sunat-connection');
+        Route::post('/settings/test-sri-connection', [SettingsController::class, 'testSriConnection']);
         Route::post('/settings/certificate-info', [SettingsController::class, 'getCertificateInfo'])->name('settings.certificate-info');
         Route::post('/settings/upload-logo', [SettingsController::class, 'uploadLogo'])->name('settings.upload-logo');
         Route::post('/settings/remove-logo', [SettingsController::class, 'removeLogo'])->name('settings.remove-logo');
@@ -272,28 +268,32 @@ Route::middleware([
 
         Route::prefix('chart-of-accounts')->name('tenant.chart-of-accounts.')->group(function () {
             Route::get('/', [ChartOfAccountsController::class, 'index'])->name('index');
-            Route::get('/create', [ChartOfAccountsController::class, 'create'])->name('create');
-            Route::post('/', [ChartOfAccountsController::class, 'store'])->name('store');
-            Route::get('/{chartOfAccount}/edit', [ChartOfAccountsController::class, 'edit'])->name('edit');
-            Route::put('/{chartOfAccount}', [ChartOfAccountsController::class, 'update'])->name('update');
-            Route::delete('/{chartOfAccount}', [ChartOfAccountsController::class, 'destroy'])->name('destroy');
-            
-            // Ruta específica para importación
-            Route::post('/import', [ChartOfAccountsController::class, 'import'])->name('import');
         });
         
         Route::resource('suppliers', SupplierController::class);
-        Route::resource('products', ProductsController::class);
+        Route::resource('products', ProductsController::class, ['as' => 'tenant']);
 
-        Route::get('invoices/{invoice}/authorize', [InvoicesController::class, 'authorize'])->name('invoices.authorize');
-        Route::resource('invoices', InvoicesController::class)->except(['destroy']);
+        // Route::get('invoices/{invoice}/authorize', [InvoicesController::class, 'authorize'])->name('invoices.authorize');
+        // Route::resource('invoices', InvoicesController::class, ['as' => 'tenant'])->except(['destroy']);
+        Route::prefix('invoices')->name('tenant.invoices.')->group(function () {
+            Route::get('/', [InvoicesController::class, 'index'])->name('index');
+            Route::get('/create', [InvoicesController::class, 'create'])->name('create');
+            Route::post('/', [InvoicesController::class, 'store'])->name('store');
+            Route::get('/{invoice}', [InvoicesController::class, 'show'])->name('show');
+            Route::get('/{invoice}/edit', [InvoicesController::class, 'edit'])->name('edit');
+            Route::put('/{invoice}', [InvoicesController::class, 'update'])->name('update');
+            Route::post('/{invoice}/authorize', [InvoicesController::class, 'authorizeInvoice'])->name('authorize');
+            Route::get('/{invoice}/pdf', [InvoicesController::class, 'downloadPDF'])->name('pdf');
+            Route::post('/{invoice}/send', [InvoicesController::class, 'sendEmail'])->name('send');
+            Route::post('/{invoice}/duplicate', [InvoicesController::class, 'duplicate'])->name('duplicate');
+            Route::delete('/{invoice}', [InvoicesController::class, 'destroy'])->name('destroy');
+            Route::get('/next-number', [InvoicesController::class, 'getNextInvoiceNumber'])->name('next-number');
+        });
 
         Route::resource('purchases', PurchaseController::class)->except(['destroy']);
 
         Route::post('journal-entries/{journalEntry}/post', [JournalEntryController::class, 'post'])->name('journal-entries.post');
         Route::resource('journal-entries', JournalEntryController::class)->except(['destroy']);
-
-        Route::resource('companies', CompaniesController::class)->only(['index','edit','update','show']);
 
         Route::resource('withholdings', WithholdingsController::class)->only(['index','create','store','show']);
 

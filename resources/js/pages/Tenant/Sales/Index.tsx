@@ -2,7 +2,7 @@ import { Head, router } from "@inertiajs/react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Sale } from "@/common/interfaces/tenant/sales.interface";
+import { Invoice } from "@/common/interfaces/tenant/sales.interface";
 import { formatCurrency } from "@/lib/utils";
 import AppSidebarLayout from "@/layouts/app/app-sidebar-layout";
 import { Plus } from "lucide-react";
@@ -15,7 +15,7 @@ interface PaginationLink {
 
 interface SalesProps {
     sales?: {
-        data: Sale[];
+        data: Invoice[];
         meta: {
             current_page: number;
             from: number;
@@ -107,8 +107,8 @@ export default function Index({
                                             salesData.map((sale) => (
                                                 <tr key={sale.id} className="border-t">
                                                     <td className="px-4 py-3">{sale.id}</td>
-                                                    <td className="px-4 py-3">{sale.client.name}</td>
-                                                    <td className="px-4 py-3">S/ {formatCurrency(sale.total)}</td>
+                                                    <td className="px-4 py-3">{sale.customer.business_name}</td>
+                                                    <td className="px-4 py-3">{formatCurrency(sale.total)}</td>
                                                     <td className="px-4 py-3">
                                                         <Badge>{sale.status}</Badge>
                                                     </td>
