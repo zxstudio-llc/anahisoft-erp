@@ -2,119 +2,136 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Services\CulqiPaymentService;
+use App\Http\Services\PayPhonePaymentService;
 use App\Models\SubscriptionPlan;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-use Inertia\Inertia;
 
 class PaymentController extends Controller
 {
     protected $paymentService;
 
-    public function __construct(CulqiPaymentService $paymentService)
+    public function __construct(PayPhonePaymentService $paymentService)
     {
         $this->paymentService = $paymentService;
     }
 
-    public function processSubscriptionPayment(Request $request)
-    {
-        $request->validate([
-            'plan_id' => 'required|exists:subscription_plans,id',
-            'billing_period' => 'required|in:monthly,yearly',
-            'amount' => 'required|numeric',
-            'token' => 'required|string',
-            'email' => 'required|email',
-            'currency_code' => 'required|string|in:PEN',
-        ]);
-
-        $plan = SubscriptionPlan::findOrFail($request->plan_id);
-        $tenantId = $request->user()?->tenant_id;
-
-        $result = $this->paymentService->processSubscriptionPayment(
-            $request->all(),
-            $plan,
-            $tenantId
-        );
-
-        if (!$result['success']) {
-            return response()->json([
-                'success' => false,
-                'message' => $result['message']
-            ], 422);
-        }
-
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'payment_id' => $result['payment_id'],
-                'status' => $result['status'],
-            ]
-        ]);
-    }
-
-    public function success(Request $request)
+    /**
+     * Crea un payment link
+     */
+    public function createPaymentLink(Request $request)
     {
         try {
-            if ($request->user()?->tenant_id) {
-                return redirect()->route('tenant.subscription.index')->with('success', 'Pago procesado exitosamente');
-            }
-
-            return redirect()->route('register')->with('payment_success', true);
-
-        } catch (\Exception $e) {
-            Log::error('Error processing payment success', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+            $validated = $request->validate([
+                'plan_id' => 'required|integer|exists:subscription_plans,id',
+                'billing_period' => 'required|in:monthly,yearly',
+                'amount' => 'required|numeric|min:0.01',
+                'email' => 'required|email',
             ]);
 
-            return redirect()->route('payment.failure');
-        }
-    }
+            Log::info('✅ Validación exitosa', $validated);
 
-    public function failure()
-    {
-        return Inertia::render('Tenant/Subscription/PaymentFailure', [
-            'message' => session('error', 'El pago no pudo ser procesado.')
-        ]);
-    }
+            $plan = SubscriptionPlan::findOrFail($validated['plan_id']);
 
-    public function pending()
-    {
-        return Inertia::render('Payment/Pending', [
-            'message' => 'El pago está pendiente de confirmación.'
-        ]);
-    }
-
-    public function webhook(Request $request)
-    {
-        try {
-            Log::info('Payment webhook received', ['data' => $request->all()]);
-
-            // Culqi webhooks have a different structure, we'll process them directly
-            $result = $this->paymentService->processSubscriptionPayment(
-                $request->all(),
-                null,
-                null
+            $result = $this->paymentService->createPaymentLink(
+                $plan,
+                $validated['amount'],
+                $validated['email'],
+                $validated['billing_period']
             );
 
             if (!$result['success']) {
-                Log::error('Error processing webhook payment', [
-                    'error' => $result['message'],
-                    'data' => $request->all()
-                ]);
-                return response()->json(['error' => $result['message']], 422);
+                return response()->json([
+                    'success' => false,
+                    'message' => $result['message']
+                ], 422);
             }
 
-            return response()->json(['message' => 'Payment processed successfully']);
-
-        } catch (\Exception $e) {
-            Log::error('Error in payment webhook', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+            return response()->json([
+                'success' => true,
+                'payment_url' => $result['payment_url'],
+                'client_transaction_id' => $result['client_transaction_id'],
+                'plan_id' => $result['plan_id'],
             ]);
 
-            return response()->json(['error' => 'Internal server error'], 500);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::error('❌ Error validación', ['errors' => $e->errors()]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Error de validación',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            Log::error('❌ Error en createPaymentLink', ['error' => $e->getMessage()]);
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 500);
         }
     }
-} 
+
+    /**
+     * Callback de PayPhone: pago completado
+     * PayPhone hace POST a esta URL cuando el pago se completa
+     */
+    public function paymentCallback(Request $request)
+    {
+        try {
+            Log::info('📍 Callback de PayPhone', $request->all());
+
+            // Aquí es donde PayPhone notifica el pago completado
+            // Guarda el estado en la BD para que el frontend lo verifique
+            
+            $transactionId = $request->get('transactionId');
+            $status = $request->get('status');
+            $reference = $request->get('reference');
+
+            if ($status === 'Approved') {
+                Log::info('✅ Pago aprobado', [
+                    'transaction_id' => $transactionId,
+                    'reference' => $reference
+                ]);
+                
+                // TODO: Aquí guardar el pago en tu BD
+                // PaymentTransaction::create([...])
+            }
+
+            // Responder 200 OK a PayPhone
+            return response()->json(['success' => true]);
+
+        } catch (\Exception $e) {
+            Log::error('❌ Error en callback', ['error' => $e->getMessage()]);
+            return response()->json(['success' => false], 500);
+        }
+    }
+
+    /**
+     * Verifica si un pago fue completado (llamado desde el frontend)
+     */
+    public function checkPaymentStatus(Request $request)
+    {
+        try {
+            $clientTransactionId = $request->get('client_transaction_id');
+
+            Log::info('🔍 Verificando estado', ['id' => $clientTransactionId]);
+
+            // TODO: Buscar en tu BD si el pago fue registrado
+            // $payment = PaymentTransaction::where('client_transaction_id', $clientTransactionId)->first();
+            
+            // Por ahora retornamos false
+            return response()->json([
+                'success' => true,
+                'is_approved' => false,
+                'status' => 'pending',
+                'message' => 'Pago pendiente de confirmación'
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('❌ Error verificando estado', ['error' => $e->getMessage()]);
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+}

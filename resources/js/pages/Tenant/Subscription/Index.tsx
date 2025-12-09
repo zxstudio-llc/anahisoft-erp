@@ -21,7 +21,7 @@ export default function Index({ currentPlan, availablePlans, subscriptionStatus,
             return <Badge variant="destructive">Inactiva</Badge>;
         }
         if (subscriptionStatus.onTrial) {
-            return <Badge>Periodo de Prueba</Badge>;
+            return <Badge>En Prueba</Badge>;
         }
         return <Badge variant="outline">Activa</Badge>;
     };
@@ -45,43 +45,99 @@ export default function Index({ currentPlan, availablePlans, subscriptionStatus,
         <AppLayout>
             <Head title="Suscripción" />
             <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
-                <h1 className="mb-6 text-2xl font-bold">Suscripción</h1>
+                {/* Header con días restantes */}
+                {subscriptionStatus.onTrial && daysRemaining !== null && (
+                    <div className="rounded-lg bg-blue-50 p-4 dark:bg-blue-950/20">
+                        <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                            {daysRemaining} días de prueba gratuita restantes
+                        </p>
+                    </div>
+                )}
 
-                <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-                    <div className="space-y-6 md:col-span-2">
-                        {/* Estado de la suscripción */}
-                        <Card>
-                            <CardHeader>
-                                <div className="flex items-center justify-between">
-                                    <CardTitle>Estado de la Suscripción</CardTitle>
-                                    {getStatusBadge()}
+                <h1 className="text-2xl font-bold">Detalles del Plan</h1>
+
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+                    {/* Card Principal - Detalles del Plan */}
+                    <Card className="lg:col-span-2">
+                        <CardHeader>
+                            <div className="flex items-start justify-between">
+                                <div className="flex items-center gap-4">
+                                    <div className="rounded-full bg-primary p-3">
+                                        <FileText className="h-6 w-6 text-white" />
+                                    </div>
+                                    <div>
+                                        <CardTitle className="text-sm text-muted-foreground font-black">Suscripción</CardTitle>
+                                        <CardTitle className="text-md">Anahisoft ERP + Facturación</CardTitle>
+                                        <CardDescription className="mt-1">
+                                            {subscriptionStatus.isActive ? 'Su suscripción está activa' : 'Su suscripción no está activa'}
+                                        </CardDescription>
+                                    </div>
                                 </div>
-                                <CardDescription>
-                                    {subscriptionStatus.isActive ? 'Su suscripción está activa' : 'Su suscripción no está activa'}
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                {currentPlan ? (
-                                    <>
-                                        <div className="flex items-center justify-between">
-                                            <div>
-                                                <p className="text-sm text-muted-foreground">Plan Actual</p>
-                                                <p className="text-lg font-medium">{currentPlan.name}</p>
+                                <div className='flex flex-col justify-end items-end'>
+                                    <div>
+                                    {getStatusBadge()}
+                                    </div>
+                                    <div>
+                                        {subscriptionStatus.onTrial && (
+                                            <Button variant="link" className="flex-1 no-underline hover:no-underline focus:no-underline cursor-pointer p-0" onClick={() => router.get('/subscription/upgrade')}>
+                                                Gestionar Prueba
+                                            </Button>
+                                        )}
+                                        <Button variant="link" className="font-black text-md flex-1 no-underline hover:no-underline focus:no-underline cursor-pointer p-0" onClick={() => router.get('/subscription/upgrade')}>
+                                            {currentPlan ? 'Cambiar Plan' : 'Comprar Plan'}
+                                        </Button>
+                                    </div>
+                                </div>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="space-y-6">
+                            {currentPlan ? (
+                                <>
+                                    {/* Información del Plan */}
+                                    <div className="space-y-12">
+                                        <div>
+                                            <div className='flex items-center'>
+                                                <p className="text-sm text-muted-foreground font-black">Plan Actual</p>
+                                                <div>
+                                                    {subscriptionStatus.onTrial && (
+                                                        <Button variant="link" className="flex-1 no-underline hover:no-underline focus:no-underline cursor-pointer" onClick={() => router.get('/subscription/upgrade')}>
+                                                            Gestionar Prueba
+                                                        </Button>
+                                                    )}
+                                                    <Button variant="link" className="flex-1 no-underline hover:no-underline focus:no-underline cursor-pointer" onClick={() => router.get('/subscription/upgrade')}>
+                                                        {currentPlan ? 'Cambiar Plan' : 'Comprar Plan'}
+                                                    </Button>
+                                                </div>
                                             </div>
-                                            <div className="text-right">
-                                                <p className="text-sm text-muted-foreground">Precio</p>
-                                                <p className="text-lg font-medium">
-                                                    {currentPlan.price.toLocaleString('es-PE', { style: 'currency', currency: 'PEN' })}
-                                                    <span className="text-sm text-muted-foreground">
-                                                        /{currentPlan.billing_period === 'monthly' ? 'mes' : 'año'}
+                                            <p className="text-2xl font-bold">{currentPlan.name}</p>
+                                        </div>
+
+                                        {/* Features del Plan */}
+                                        <div className="space-y-2">
+                                            <div className='flex items-center'>
+                                                <p className="text-sm text-muted-foreground font-black">Características del Plan</p>
+                                            </div>
+                                            <ul className="space-y-2">
+                                                <li className="flex items-center text-sm">
+                                                    <Check className="mr-2 h-4 w-4 text-primary" />
+                                                    <span>
+                                                        {currentPlan.invoice_limit === 0
+                                                            ? 'Facturas ilimitadas'
+                                                            : `${currentPlan.invoice_limit} facturas/mes`}
                                                     </span>
-                                                </p>
-                                            </div>
+                                                </li>
+                                                {currentPlan.features?.map((feature, index) => (
+                                                    <li key={index} className="flex items-center text-sm">
+                                                        <Check className="mr-2 h-4 w-4 text-primary" />
+                                                        <span>{feature}</span>
+                                                    </li>
+                                                ))}
+                                            </ul>
                                         </div>
 
                                         {daysRemaining !== null && (
-                                            <div className="rounded-md bg-muted p-4">
-                                                <div className="mb-2 flex items-center justify-between">
+                                            <div className="rounded-lg border bg-muted/50 p-4">
+                                                <div className="mb-3 flex items-center justify-between">
                                                     <div className="flex items-center">
                                                         <Calendar className="mr-2 h-4 w-4 text-primary" />
                                                         <span className="text-sm font-medium">
@@ -106,94 +162,75 @@ export default function Index({ currentPlan, availablePlans, subscriptionStatus,
                                                 </p>
                                             </div>
                                         )}
-                                    </>
-                                ) : (
-                                    <div className="flex items-center rounded-md bg-amber-50 p-4 dark:bg-amber-950/20">
-                                        <AlertTriangle className="mr-2 h-5 w-5 text-amber-500" />
-                                        <p className="text-sm">No tiene un plan de suscripción activo. Por favor, seleccione un plan.</p>
                                     </div>
-                                )}
-                            </CardContent>
-                            <CardFooter>
-                                <Button className="w-full" onClick={() => router.get('/subscription/upgrade')}>
-                                    {currentPlan ? 'Cambiar Plan' : 'Seleccionar Plan'}
+                                </>
+                            ) : (
+                                <div className="flex items-center rounded-lg bg-amber-50 p-4 dark:bg-amber-950/20">
+                                    <AlertTriangle className="mr-3 h-5 w-5 text-amber-500" />
+                                    <p className="text-sm">No tiene un plan de suscripción activo. Por favor, seleccione un plan.</p>
+                                </div>
+                            )}
+                        </CardContent>
+                        <CardFooter className="flex gap-3">
+                            {subscriptionStatus.onTrial && (
+                                <Button variant="outline" className="flex-1" onClick={() => router.get('/subscription/upgrade')}>
+                                    Gestionar Prueba
                                 </Button>
-                            </CardFooter>
-                        </Card>
+                            )}
+                            <Button className="flex-1" onClick={() => router.get('/subscription/upgrade')}>
+                                {currentPlan ? 'Cambiar Plan' : 'Comprar Plan'}
+                            </Button>
+                        </CardFooter>
+                    </Card>
 
-                        {/* Uso de facturas */}
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Uso de Facturas</CardTitle>
-                                <CardDescription>Seguimiento del uso de facturas en el periodo actual</CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                <div className="mb-2 flex items-center justify-between">
-                                    <div className="flex items-center">
-                                        <FileText className="mr-2 h-4 w-4 text-primary" />
-                                        <span className="text-sm font-medium">Facturas emitidas este mes:</span>
-                                    </div>
-                                    <span className="font-bold">
-                                        {invoiceUsage.monthly} / {invoiceUsage.limit === 0 ? '∞' : invoiceUsage.limit}
+                    {/* Card Secundaria - Uso de Facturas */}
+                    <Card className='h-2/4'>
+                        <CardHeader>
+                            <CardTitle>Uso de Facturas</CardTitle>
+                            <CardDescription>Periodo actual</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-sm font-medium">Este mes</span>
+                                    <span className="text-2xl font-bold">
+                                        {invoiceUsage.monthly}
                                     </span>
                                 </div>
                                 {invoiceUsage.limit > 0 && (
-                                    <div className="h-2 w-full rounded-full bg-gray-200 dark:bg-gray-700">
-                                        <div
-                                            className="h-2 rounded-full bg-primary"
-                                            style={{ width: `${Math.min(invoiceUsage.percentage, 100)}%` }}
-                                        ></div>
-                                    </div>
-                                )}
-                                <p className="text-xs text-muted-foreground">Total de facturas emitidas: {invoiceUsage.total}</p>
-                            </CardContent>
-                        </Card>
-                    </div>
-
-                    {/* Planes disponibles */}
-                    <div>
-                        <h2 className="mb-4 text-lg font-medium">Planes Disponibles</h2>
-                        <div className="space-y-4">
-                            {availablePlans.map((plan) => (
-                                <Card key={plan.id} className={plan.is_featured ? 'border-primary' : ''}>
-                                    <CardHeader className="pb-2">
-                                        <div className="flex items-center justify-between">
-                                            <CardTitle className="text-base">{plan.name}</CardTitle>
-                                            {plan.is_featured && <Badge>Recomendado</Badge>}
+                                    <>
+                                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                            <span>de {invoiceUsage.limit} disponibles</span>
+                                            <span>{invoiceUsage.percentage.toFixed(0)}%</span>
                                         </div>
-                                        <CardDescription>
-                                            {plan.price.toLocaleString('es-PE', { style: 'currency', currency: 'PEN' })}
-                                            <span className="text-xs">/{plan.billing_period === 'monthly' ? 'mes' : 'año'}</span>
-                                        </CardDescription>
-                                    </CardHeader>
-                                    <CardContent className="pb-2">
-                                        <ul className="space-y-1 text-sm">
-                                            <li className="flex items-center">
-                                                <Check className="mr-2 h-4 w-4 text-primary" />
-                                                {plan.invoice_limit === 0 ? 'Facturas ilimitadas' : `${plan.invoice_limit} facturas/mes`}
-                                            </li>
-                                            {plan.features?.map((feature, index) => (
-                                                <li key={index} className="flex items-center">
-                                                    <Check className="mr-2 h-4 w-4 text-primary" />
-                                                    {feature}
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    </CardContent>
-                                    <CardFooter>
-                                        <Button
-                                            variant={currentPlan?.id === plan.id ? 'outline' : 'default'}
-                                            className="w-full"
-                                            disabled={currentPlan?.id === plan.id}
-                                            onClick={() => router.get('/subscription/upgrade')}
-                                        >
-                                            {currentPlan?.id === plan.id ? 'Plan Actual' : 'Seleccionar'}
-                                        </Button>
-                                    </CardFooter>
-                                </Card>
-                            ))}
-                        </div>
-                    </div>
+                                        <div className="h-2 w-full rounded-full bg-gray-200 dark:bg-gray-700">
+                                            <div
+                                                className="h-2 rounded-full bg-primary transition-all"
+                                                style={{ width: `${Math.min(invoiceUsage.percentage, 100)}%` }}
+                                            ></div>
+                                        </div>
+                                    </>
+                                )}
+                                {invoiceUsage.limit === 0 && (
+                                    <p className="text-xs text-muted-foreground">Facturas ilimitadas</p>
+                                )}
+                            </div>
+
+                            <div className="border-t pt-4">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-sm text-muted-foreground">Total emitidas</span>
+                                    <span className="font-medium">{invoiceUsage.total}</span>
+                                </div>
+                            </div>
+                        </CardContent>
+                        {currentPlan && (
+                            <CardFooter>
+                                <Button variant="outline" className="w-full" size="sm">
+                                    Ver facturas
+                                </Button>
+                            </CardFooter>
+                        )}
+                    </Card>
                 </div>
             </div>
         </AppLayout>

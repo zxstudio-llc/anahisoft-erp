@@ -1,5 +1,5 @@
 import { Head, useForm } from '@inertiajs/react';
-import { CheckCircle2, LoaderCircle, PartyPopper } from 'lucide-react';
+import { CheckCircle2, LoaderCircle } from 'lucide-react';
 import { FormEventHandler, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -20,22 +20,23 @@ type RegisterForm = {
     email: string;
     password: string;
     password_confirmation: string;
-    company_name: string;
-    ruc: string;
+    company_name: string; // Mapeado desde business_name
+    ruc: string;          // Mapeado desde identification
     domain: string;
     plan_id: number | undefined;
     billing_period: string;
     
-    identification: string;
-    business_name: string;
-    legal_name: string;
-    commercial_name?: string;
-    status: string;
-    taxpayer_status: string;
-    head_office_address: string;
+    identification: string;        // RUC (ya existe como 'ruc' pero lo agregamos por consistencia)
+    business_name: string;         // Razón social (ya existe como company_name)
+    legal_name: string;            // Nombre legal (nuevo)
+    commercial_name?: string;      // Nombre comercial (similar a trade_name)
+    status: string;                // Estado del contribuyente
+    taxpayer_status: string;       // Condición del contribuyente (antes 'condition')
+    head_office_address: string;   // Dirección principal (antes 'address')
     
+    // Estructuras anidadas
     taxpayer_dates?: {
-        start_date: string;
+        start_date: string;        // Fecha de inscripción (antes 'registration_date')
     };
     
     establishments?: Array<{
@@ -43,10 +44,11 @@ type RegisterForm = {
         department?: string;
         province?: string;
         district?: string;
-        parish?: string;
+        parish?: string;           // Nuevo campo
     }>;
     
-    trade_name?: string;
+    // Campos existentes que se mantienen
+    trade_name?: string;          // Nombre comercial (alternativo a commercial_name)
     emission_system?: string;
     accounting_system?: string;
     foreign_trade_activity?: string;
@@ -62,18 +64,21 @@ type RegisterForm = {
     ubigeo?: string;
     capital?: number;
     
-    department?: string;
-    province?: string;
-    district?: string;
-    parish?: string;
+    // Campos de ubicación directos (para fácil acceso)
+    department?: string;          // Podría venir de establishments[0]
+    province?: string;            // Podría venir de establishments[0]
+    district?: string;            // Podría venir de establishments[0]
+    parish?: string;              // Nuevo campo, podría venir de establishments[0]
     
+    // Campos de pago
     card_number: string;
     card_expiry: string;
     card_cvv: string;
     
-    registration_date?: string;
-    condition?: string;
-    address?: string;
+    // Campos calculados o auxiliares
+    registration_date?: string;   // Alias para taxpayer_dates.start_date
+    condition?: string;           // Alias para taxpayer_status (mantener compatibilidad)
+    address?: string;             // Alias para head_office_address (mantener compatibilidad)
 };
 
 interface RegisterProps {
@@ -88,32 +93,35 @@ interface RegisterProps {
     billing_period?: string;
 }
 
-export default function Register({ freePlan, selectedPlan, app_domain, billing_period = 'monthly' }: RegisterProps) {
+export default function RegisterRES({ freePlan, selectedPlan, app_domain, billing_period = 'monthly' }: RegisterProps) {
     const [currentStep, setCurrentStep] = useState(1);
     const [showPaymentModal, setShowPaymentModal] = useState(false);
-    const [showSuccessMessage, setShowSuccessMessage] = useState(false);
-    const [redirectUrl, setRedirectUrl] = useState('');
-    const [countdown, setCountdown] = useState(30);
-    
     const { data, setData, post, processing, errors, setError, clearErrors } = useForm<RegisterForm>({
+        // Campos básicos de usuario
         name: '',
         email: '',
         password: '',
         password_confirmation: '',
+        
+        // Campos de empresa
         company_name: '',
         ruc: '',
         domain: '',
         plan_id: selectedPlan?.id || freePlan?.id || undefined,
         billing_period: billing_period,
-        identification: '',
-        business_name: '',
+        
+        // Campos completos
+        identification: '', // Equivalente a ruc
+        business_name: '', // Equivalente a company_name
         legal_name: '',
         commercial_name: '',
         status: '',
-        taxpayer_status: '',
-        head_office_address: '',
+        taxpayer_status: '', // Equivalente a condition
+        head_office_address: '', // Equivalente a address
+        
+        // Estructuras anidadas 
         taxpayer_dates: {
-            start_date: '',
+            start_date: '', // Equivalente a registration_date
         },
         establishments: [{
             address: '',
@@ -122,6 +130,8 @@ export default function Register({ freePlan, selectedPlan, app_domain, billing_p
             district: '',
             parish: '',
         }],
+        
+        // Campos adicionales
         trade_name: '',
         emission_system: '',
         accounting_system: '',
@@ -137,34 +147,28 @@ export default function Register({ freePlan, selectedPlan, app_domain, billing_p
         profession: '',
         ubigeo: '',
         capital: 0,
+        
+        // Campos de ubicación directos (alternativos a establishments[0])
         department: '',
         province: '',
         district: '',
         parish: '',
+        
+        // Campos de pago
         card_number: '',
         card_expiry: '',
         card_cvv: '',
-        condition: '',
-        address: '',
-        registration_date: '',
+        
+        // Campos alias para compatibilidad (opcionales)
+        condition: '', // Alias de taxpayer_status
+        address: '',  // Alias de head_office_address
+        registration_date: '', // Alias de taxpayer_dates.start_date
     });
 
     const [validatingRuc, setValidatingRuc] = useState(false);
     const [rucValidated, setRucValidated] = useState(false);
 
-    // Countdown effect
-    useEffect(() => {
-        if (showSuccessMessage && countdown > 0) {
-            const timer = setTimeout(() => {
-                setCountdown(countdown - 1);
-            }, 1000);
-            return () => clearTimeout(timer);
-        } else if (showSuccessMessage && countdown === 0 && redirectUrl) {
-            window.location.href = redirectUrl;
-        }
-    }, [showSuccessMessage, countdown, redirectUrl]);
-
-    const parseAddress = (addressString: string) => {
+    const parseAddress = (addressString) => {
         if (!addressString) {
             return {
                 province: '',
@@ -173,9 +177,11 @@ export default function Register({ freePlan, selectedPlan, app_domain, billing_p
             };
         }
     
+        // Dividir por "/" y limpiar espacios
         const parts = addressString.split('/').map(part => part.trim()).filter(part => part.length > 0);
         
-        const cleanText = (text: string) => {
+        // Función para limpiar texto (capitalizar correctamente)
+        const cleanText = (text) => {
             if (!text) return '';
             return text.toLowerCase()
                 .split(' ')
@@ -183,7 +189,8 @@ export default function Register({ freePlan, selectedPlan, app_domain, billing_p
                 .join(' ');
         };
     
-        const removeParentheses = (text: string) => {
+        // Función para limpiar nombres entre paréntesis
+        const removeParentheses = (text) => {
             return text.replace(/\([^)]*\)/g, '').trim();
         };
     
@@ -194,30 +201,47 @@ export default function Register({ freePlan, selectedPlan, app_domain, billing_p
         };
     };
 
-    const cleanDomainValue = (value: string) => {
+    // 2. Funciones de limpieza de dominio (mover aquí)
+    const cleanDomainValue = (value) => {
         if (!value) return '';
         
+        // 1. Convertir a minúsculas
         let cleanValue = value.toLowerCase();
-        cleanValue = cleanValue.replace(/\s+/g, '');
+        
+        // 2. Eliminar espacios en blanco (primero y más importante)
+        cleanValue = cleanValue.replace(/\s+/g, ''); // Esto elimina TODOS los espacios
+        
+        // 3. Normalizar caracteres especiales y eliminar tildes
         cleanValue = cleanValue.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        
+        // 4. Reemplazar ñ por n
         cleanValue = cleanValue.replace(/ñ/g, "n");
+        
+        // 5. Eliminar caracteres no permitidos (solo letras, números y guiones)
         cleanValue = cleanValue.replace(/[^a-z0-9-]/g, "");
+        
+        // 6. Eliminar guiones al inicio y final
         cleanValue = cleanValue.replace(/^-+|-+$/g, "");
+        
+        // 7. Reemplazar múltiples guiones consecutivos por uno solo
         cleanValue = cleanValue.replace(/-{2,}/g, "-");
         
         return cleanValue;
     };
     
-    const setCleanDomain = (value: string) => {
+    // 3. Función personalizada para setear el domain
+    const setCleanDomain = (value) => {
         const cleanedValue = cleanDomainValue(value);
         setData('domain', cleanedValue);
         
+        // Limpiar errores si los hay
         if (errors.domain) {
             clearErrors('domain');
         }
     };
     
-    const validateDomain = (domain: string) => {
+    // 4. Función de validación de dominio
+    const validateDomain = (domain) => {
         if (!domain) {
             return 'El subdominio es obligatorio';
         }
@@ -227,18 +251,19 @@ export default function Register({ freePlan, selectedPlan, app_domain, billing_p
         if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(domain)) {
             return 'El subdominio solo puede contener letras, números y guiones internos';
         }
-        return null;
+        return null; // No hay errores
     };
 
     useEffect(() => {
+        // Cargar el script de Mercado Pago
         const loadMercadoPago = async () => {
             try {
                 const script = document.createElement('script');
                 script.src = 'https://sdk.mercadopago.com/js/v2';
                 script.type = 'text/javascript';
                 script.onload = () => {
-                    const mp = new (window as any).MercadoPago(import.meta.env.VITE_MERCADOPAGO_PUBLIC_KEY);
-                    (window as any).mp = mp;
+                    const mp = new window.MercadoPago(import.meta.env.VITE_MERCADOPAGO_PUBLIC_KEY);
+                    window.mp = mp;
                 };
                 document.body.appendChild(script);
             } catch (error) {
@@ -254,8 +279,9 @@ export default function Register({ freePlan, selectedPlan, app_domain, billing_p
             if (script) {
                 document.body.removeChild(script);
             }
-            if ((window as any).cardPaymentBrickController) {
-                (window as any).cardPaymentBrickController.unmount();
+            // Limpiar el controlador del brick si existe
+            if (window.cardPaymentBrickController) {
+                window.cardPaymentBrickController.unmount();
             }
         };
     }, []);
@@ -283,137 +309,95 @@ export default function Register({ freePlan, selectedPlan, app_domain, billing_p
         return `${formatted}/mes`;
     };
 
-    const handlePaymentSuccess = async (paymentId: string) => {
-        setShowPaymentModal(false);
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        handleRegistration(paymentId);
-    };
-
     const handleRegistration = async (paymentId: string) => {
         console.log('=== INICIANDO REGISTRO FRONTEND ===');
-        
         const formData = {
-            name: data.name,
-            email: data.email,
-            password: data.password,
-            password_confirmation: data.password_confirmation,
-            company_name: data.company_name,
-            ruc: data.ruc,
-            domain: data.domain,
-            plan_id: data.plan_id,
-            billing_period: data.billing_period,
+            ...data,
             payment_id: paymentId,
+            // Include RUC in data JSON structure
+            ruc: data.ruc,
         };
         
         console.log('Datos del formulario:', formData);
     
         try {
-            const loadingToast = toast.loading('Creando su cuenta...');
+            // Show loading state immediately
+            const loadingToast = toast.loading('Creando su cuenta y configurando su sistema...');
             
             console.log('Enviando petición de registro...');
             
-            // Reducir timeout a 30 segundos
+            // Usar Axios directamente para tener más control
             const response = await axios.post(route('register'), formData, {
                 headers: {
                     'Accept': 'application/json',
                     'Content-Type': 'application/json',
                     'X-Requested-With': 'XMLHttpRequest',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
-                },
-                timeout: 30000 // 30 segundos
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
+                }
             });
     
-            console.log('✅ Respuesta recibida:', response);
-            toast.dismiss(loadingToast);
+            console.log('Respuesta recibida:', response);
             
+            // Dismiss loading toast
+            toast.dismiss(loadingToast);
+    
             if (response.data.success) {
-                const fullDomain = response.data.domain;
-                const redirect = response.data.redirect;
+                console.log('Registro exitoso, redirigiendo...');
+                toast.success(response.data.message || 'Cuenta creada exitosamente');
                 
-                console.log('Domain recibido:', fullDomain);
-                console.log('Redirect URL:', redirect);
+                // Usar la URL de redirección del servidor
+                const redirectUrl = response.data.redirect || `https://${data.domain}.${app_domain}/login`;
                 
-                // Mostrar mensaje de éxito inmediatamente
-                setRedirectUrl(redirect);
-                setShowSuccessMessage(true);
-                setCountdown(30);
+                console.log('URL de redirección:', redirectUrl);
                 
-                toast.success('¡Cuenta creada exitosamente!');
+                // Show success message with redirect info
+                toast.success('Redirigiendo a su panel administrativo...', {
+                    duration: 2000,
+                });
                 
-                // Iniciar verificación de estado en segundo plano
-                startBackgroundValidation(response.data.tenant_id, redirect);
+                // Redireccionar después de mostrar el toast
+                setTimeout(() => {
+                    console.log('Redirigiendo a:', redirectUrl);
+                    window.location.href = redirectUrl;
+                }, 2000);
             } else {
+                console.error('Registro falló - respuesta no exitosa:', response.data);
                 toast.error(response.data.message || 'Error al crear la cuenta');
             }
-    
-        } catch (error: any) {
-            console.error('❌ Error en registro:', error);
+        } catch (error) {
+            console.error('=== ERROR EN REGISTRO FRONTEND ===');
+            console.error('Error completo:', error);
+            console.error('Respuesta del error:', error.response?.data);
+            console.error('Status del error:', error.response?.status);
+            console.error('Headers del error:', error.response?.headers);
             
-            // Si es timeout, asumir que se creó y mostrar éxito
-            if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
-                const fullDomain = `${data.domain}.${app_domain}`;
-                const redirect = `https://${fullDomain}/login`;
+            if (error.response && error.response.data) {
+                const errorData = error.response.data;
                 
-                setRedirectUrl(redirect);
-                setShowSuccessMessage(true);
-                setCountdown(30);
-                
-                toast.success('¡Cuenta creada! Tu sistema se está configurando...');
+                if (errorData.errors) {
+                    console.error('Errores de validación:', errorData.errors);
+                    Object.keys(errorData.errors).forEach((key) => {
+                        if (errorData.errors[key]) {
+                            toast.error(Array.isArray(errorData.errors[key]) ? errorData.errors[key][0] : errorData.errors[key]);
+                        }
+                    });
+                } else if (errorData.message) {
+                    console.error('Mensaje de error:', errorData.message);
+                    toast.error(errorData.message);
+                } else {
+                    console.error('Error sin mensaje específico');
+                    toast.error('Error al crear la cuenta. Por favor intente nuevamente.');
+                }
             } else {
-                toast.error('Error al crear la cuenta. Por favor intente nuevamente.');
+                console.error('Error sin respuesta del servidor');
+                toast.error('Error de conexión. Por favor intente nuevamente.');
             }
         }
     };
-    
-    // Función para verificar el estado en segundo plano
-    const startBackgroundValidation = (tenantId: string, redirectUrl: string) => {
-        console.log('🔄 Iniciando verificación de estado en segundo plano...');
-        
-        let attempts = 0;
-        const maxAttempts = 60; // 5 minutos máximo
-        const interval = 5000; // 5 segundos entre intentos
-        
-        const checkStatus = async () => {
-            attempts++;
-            console.log(`🔍 Verificación ${attempts} de ${maxAttempts}`);
-            
-            try {
-                // Intentar acceder al dominio
-                const testResponse = await axios.get(redirectUrl, {
-                    timeout: 10000,
-                    validateStatus: (status) => status < 500 // Aceptar cualquier status menor a 500
-                });
-                
-                console.log('✅ Sistema accesible:', testResponse.status);
-                return true;
-                
-            } catch (error) {
-                console.log(`⏳ Sistema aún no disponible (intento ${attempts})`);
-                return false;
-            }
-        };
-        
-        // Verificar cada 5 segundos
-        const validationInterval = setInterval(async () => {
-            const isReady = await checkStatus();
-            
-            if (isReady || attempts >= maxAttempts) {
-                clearInterval(validationInterval);
-                if (isReady) {
-                    console.log('🎯 Sistema completamente listo');
-                    // No hacer nada, el contador ya está corriendo
-                } else {
-                    console.log('⚠️  Sistema tomando más tiempo de lo esperado');
-                    // El usuario puede intentar manualmente
-                }
-            }
-        }, interval);
-        
-        // Timeout total de 5 minutos
-        setTimeout(() => {
-            clearInterval(validationInterval);
-            console.log('⏰ Timeout de verificación alcanzado');
-        }, 300000);
+
+    const handlePaymentSuccess = (paymentId: string) => {
+        setShowPaymentModal(false);
+        handleRegistration(paymentId);
     };
 
     const handlePaymentError = (error: Error) => {
@@ -443,11 +427,15 @@ export default function Register({ freePlan, selectedPlan, app_domain, billing_p
                 const sriData = result.data;
                 const addressData = parseAddress(sriData?.address ?? sriData?.head_office_address ?? '');
     
+                // ✅ Mapeo corregido de campos
                 setData((prevData) => ({
                     ...prevData,
+                    // Campos básicos
                     ruc: ruc,
                     company_name: sriData?.business_name ?? sriData?.businessName ?? '',
                     domain: cleanDomainValue(sriData?.business_name ?? sriData?.businessName ?? ''),
+                    
+                    // Campos principales del SRI
                     business_name: sriData?.business_name ?? sriData?.businessName ?? '',
                     trade_name: sriData?.trade_name ?? sriData?.tradeName ?? sriData?.business_name ?? sriData?.businessName ?? '',
                     legal_name: sriData?.legal_name ?? sriData?.legalName ?? '',
@@ -455,13 +443,19 @@ export default function Register({ freePlan, selectedPlan, app_domain, billing_p
                     status: sriData?.status ?? '',
                     taxpayer_status: sriData?.taxpayer_status ?? sriData?.condition ?? '',
                     head_office_address: sriData?.head_office_address ?? sriData?.address ?? '',
+                    
+                    // Campos de ubicación
                     province: addressData.province,
                     department: addressData.department,
                     district: addressData.district,
+                    
+                    // Fechas
                     registration_date: sriData?.registration_date ?? sriData?.registrationDate ?? '',
                     taxpayer_dates: {
                         start_date: sriData?.registration_date ?? sriData?.registrationDate ?? ''
                     },
+                    
+                    // Campos adicionales del SRI
                     emission_system: sriData?.emission_system ?? sriData?.emissionSystem ?? '',
                     accounting_system: sriData?.accounting_system ?? sriData?.accountingSystem ?? '',
                     foreign_trade_activity: sriData?.foreign_trade_activity ?? sriData?.foreignTradeActivity ?? '',
@@ -476,6 +470,8 @@ export default function Register({ freePlan, selectedPlan, app_domain, billing_p
                     profession: sriData?.profession ?? '',
                     ubigeo: sriData?.ubigeo ?? '',
                     capital: typeof sriData?.capital === 'number' ? sriData.capital : 0,
+                    
+                    // Campos alias para compatibilidad
                     condition: sriData?.condition ?? sriData?.taxpayer_status ?? '',
                     address: sriData?.address ?? sriData?.head_office_address ?? '',
                     identification: ruc,
@@ -523,6 +519,7 @@ export default function Register({ freePlan, selectedPlan, app_domain, billing_p
         setData((prevData) => ({
             ...prevData,
             ruc: value,
+            // Solo limpiar company_name si el RUC cambia y no está validado
             company_name: value.length === 13 ? prevData.company_name : '',
         }));
 
@@ -551,17 +548,21 @@ export default function Register({ freePlan, selectedPlan, app_domain, billing_p
     };
 
     const nextStep = () => {
+        // Validar campos del paso actual antes de avanzar
         if (currentStep === 1) {
+            // Validar que todos los campos obligatorios estén completos
             if (!data.ruc || !data.company_name || !data.domain) {
                 toast.error('Por favor complete todos los campos obligatorios');
                 return;
             }
             
+            // Validar que el RUC esté validado
             if (!rucValidated) {
                 toast.error('Por favor valide el RUC antes de continuar');
                 return;
             }
             
+            // Validar el dominio específicamente
             const domainError = validateDomain(data.domain);
             if (domainError) {
                 setError('domain', domainError);
@@ -569,14 +570,17 @@ export default function Register({ freePlan, selectedPlan, app_domain, billing_p
                 return;
             }
             
+            // Verificar que no haya errores de validación pendientes
             if (errors.domain) {
                 toast.error('Por favor corrija los errores en el subdominio');
                 return;
             }
         }
         
+        // Si todas las validaciones pasan, avanzar al siguiente paso
         if (currentStep < 4) {
             setCurrentStep(currentStep + 1);
+            // Solo hacer scroll si no es el último paso
             if (currentStep < 3) {
                 window.scrollTo({ top: 0, behavior: 'smooth' });
             }
@@ -590,11 +594,12 @@ export default function Register({ freePlan, selectedPlan, app_domain, billing_p
         }
     };
 
-    const submit = async (e: React.FormEvent) => {
+    const submit = async (e) => {
         e.preventDefault();
     
         const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
     
+        // Validar campos del paso actual
         if (currentStep === 1) {
             if (!data.ruc || !data.company_name || !data.domain) {
                 toast.error('Por favor complete todos los campos obligatorios');
@@ -607,6 +612,7 @@ export default function Register({ freePlan, selectedPlan, app_domain, billing_p
                 return;
             }
             
+            // Validar el dominio
             const domainError = validateDomain(data.domain);
             if (domainError) {
                 setError('domain', domainError);
@@ -615,6 +621,7 @@ export default function Register({ freePlan, selectedPlan, app_domain, billing_p
                 return;
             }
             
+            // Verificar errores pendientes
             if (errors.domain) {
                 toast.error('Por favor corrija los errores en el subdominio');
                 scrollToTop();
@@ -629,20 +636,24 @@ export default function Register({ freePlan, selectedPlan, app_domain, billing_p
                 return;
             }
     
+            // Si el plan es pagado, mostrar el modal de pago
             if (selectedPlan && selectedPlan.price > 0) {
                 setShowPaymentModal(true);
                 return;
             }
     
+            // Si el plan es gratuito, proceder con el registro normal
             handleRegistration('');
         } else {
             nextStep();
         }
     };
     
+    // 3. useEffect para limpiar automáticamente cuando domain cambie desde otro lugar
     useEffect(() => {
         if (data.domain) {
             const cleanedValue = cleanDomainValue(data.domain);
+            // Solo actualizar si el valor cambió después de la limpieza
             if (cleanedValue !== data.domain) {
                 setData('domain', cleanedValue);
             }
@@ -723,9 +734,11 @@ export default function Register({ freePlan, selectedPlan, app_domain, billing_p
                         tabIndex={3}
                         value={data.domain}
                         onChange={(e) => {
+                            // Usar la función de limpieza centralizada
                             setCleanDomain(e.target.value);
                         }}
                         onBlur={(e) => {
+                            // Validación al salir del campo
                             const error = validateDomain(data.domain);
                             if (error) {
                                 setError('domain', error);
@@ -737,7 +750,7 @@ export default function Register({ freePlan, selectedPlan, app_domain, billing_p
                         placeholder="miempresa"
                         className="flex-1 bg-white/50 backdrop-blur-sm dark:bg-gray-900/50"
                     />
-                    <span className="text-sm text-gray-500 dark:text-gray-400">.{app_domain}</span>
+                    <span className="text-sm text-gray-500 dark:text-gray-400">{app_domain}</span>
                 </div>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
                     Este será el dominio donde accederá a su sistema de facturación.
@@ -771,6 +784,7 @@ export default function Register({ freePlan, selectedPlan, app_domain, billing_p
             </div>
 
             <div className="grid gap-4 md:grid-cols-3">
+
                 <div className="grid gap-2">
                     <Label htmlFor="province">Provincia</Label>
                     <Input id="province" type="text" value={data.province} disabled className="bg-neutral-50 dark:bg-neutral-800" />
@@ -875,6 +889,7 @@ export default function Register({ freePlan, selectedPlan, app_domain, billing_p
             {selectedPlan && selectedPlan.price > 0 ? (
                 <div className="rounded-lg bg-gradient-to-br from-indigo-50 to-purple-50 p-4 dark:from-indigo-950/50 dark:to-purple-950/50">
                     <div className="flex flex-col items-center gap-3 text-center">
+                        {/* Encabezado del plan centrado */}
                         <div className="flex w-full flex-col items-center gap-2 border-b border-indigo-100 pb-4 dark:border-indigo-800">
                             <h4 className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-xl font-semibold text-transparent">
                                 {selectedPlan.name}
@@ -890,6 +905,7 @@ export default function Register({ freePlan, selectedPlan, app_domain, billing_p
                             </div>
                         </div>
 
+                        {/* Lista de características */}
                         <div className="w-full">
                             <ul className="grid grid-cols-1 gap-2">
                                 {selectedPlan.features.map((feature, index) => (
@@ -905,6 +921,7 @@ export default function Register({ freePlan, selectedPlan, app_domain, billing_p
             ) : (
                 <div className="rounded-lg bg-gradient-to-br from-indigo-50 to-purple-50 p-4 dark:from-indigo-950/50 dark:to-purple-950/50">
                     <div className="flex flex-col items-center gap-3 text-center">
+                        {/* Encabezado del plan gratuito centrado */}
                         <div className="flex w-full flex-col items-center gap-2 border-b border-indigo-100 pb-4 dark:border-indigo-800">
                             <h4 className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-xl font-semibold text-transparent">
                                 Plan de Prueba Gratuito
@@ -917,6 +934,7 @@ export default function Register({ freePlan, selectedPlan, app_domain, billing_p
                             </div>
                         </div>
 
+                        {/* Lista de características más compacta */}
                         <div className="w-full space-y-2">
                             <h5 className="text-sm font-medium text-gray-700 dark:text-gray-300">Incluye:</h5>
                             <ul className="grid grid-cols-1 gap-2 text-sm text-gray-600 dark:text-gray-300">
@@ -948,187 +966,122 @@ export default function Register({ freePlan, selectedPlan, app_domain, billing_p
         </>
     );
 
-    // Mensaje de éxito
-    const renderSuccessMessage = () => (
-    <div className="flex flex-col items-center justify-center space-y-6 py-8">
-        <div className="rounded-full bg-green-100 p-6 dark:bg-green-900/30">
-            <PartyPopper className="h-16 w-16 text-green-600 dark:text-green-400" />
-        </div>
-        
-        <div className="text-center space-y-2">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                ¡Gracias por registrarte!
-            </h2>
-            <p className="text-gray-600 dark:text-gray-400">
-                Tu cuenta ha sido creada exitosamente
-            </p>
-        </div>
-
-        <div className="w-full max-w-md rounded-lg bg-gradient-to-br from-indigo-50 to-purple-50 p-6 dark:from-indigo-950/50 dark:to-purple-950/50">
-            <div className="text-center space-y-4">
-                <p className="text-sm text-gray-700 dark:text-gray-300">
-                    Serás redirigido automáticamente en
-                </p>
-                <div className="text-5xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                    {countdown}
-                </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                    segundos
-                </p>
-                <p className="text-xs text-green-600 dark:text-green-400">
-                    Tu sistema se está configurando en segundo plano...
-                </p>
-            </div>
-        </div>
-
-        <div className="text-center space-y-2">
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-                Tu dominio:
-            </p>
-            <p className="font-mono text-lg font-medium text-indigo-600 dark:text-indigo-400">
-                {data.domain}.{app_domain}
-            </p>
-        </div>
-
-        <div className="flex flex-col gap-3 w-full max-w-md">
-            <Button
-                onClick={() => window.location.href = redirectUrl}
-                className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-3 text-white hover:from-indigo-700 hover:to-purple-700"
-            >
-                Ir a mi panel ahora
-            </Button>
-            <Button
-                variant="outline"
-                onClick={() => {
-                    navigator.clipboard.writeText(`${data.domain}.${app_domain}`);
-                    toast.success('Dominio copiado al portapapeles');
-                }}
-                className="w-full"
-            >
-                Copiar dominio
-            </Button>
-        </div>
-    </div>
-);
-
     return (
         <AuthLayout
-            title={showSuccessMessage ? "¡Bienvenido!" : "Crear una cuenta"}
-            description={showSuccessMessage ? "Tu cuenta está lista" : "Ingrese su información para crear su cuenta y comenzar a facturar"}
+            title="Crear una cuenta"
+            description="Ingrese su información para crear su cuenta y comenzar a facturar"
             backgroundImage="/images/ANAHISOFT-01.jpg"
         >
             <Head title="Register" />
 
-            {showSuccessMessage ? (
-                renderSuccessMessage()
-            ) : (
-                <>
-                    <div className="mb-6">
-                        <div className="relative flex items-center justify-between">
-                            <div className="absolute top-4 right-0 left-0 -z-10 h-[2px] bg-gray-200" />
-                            <div
-                                className="absolute top-4 left-0 -z-10 h-[2px] bg-green-500 transition-all duration-500 ease-in-out"
-                                style={{
-                                    width: `${((currentStep - 1) / 3) * 100}%`,
-                                }}
-                            />
+            <div className="mb-6">
+                <div className="relative flex items-center justify-between">
+                    {/* Línea conectora base */}
+                    <div className="absolute top-4 right-0 left-0 -z-10 h-[2px] bg-gray-200" />
 
-                            {[
-                                { step: 1, label: 'Empresa' },
-                                { step: 2, label: 'Detalles' },
-                                { step: 3, label: 'Cuenta' },
-                                { step: 4, label: 'Pago' },
-                            ].map(({ step, label }) => (
-                                <div key={step} className="relative flex flex-col items-center">
-                                    <div
-                                        className={`mb-1 flex h-8 w-8 items-center justify-center rounded-full transition-all duration-300 ease-in-out ${
-                                            currentStep === step
-                                                ? 'bg-indigo-600 text-white'
-                                                : currentStep > step
-                                                  ? 'bg-green-500 text-white'
-                                                  : 'bg-gray-100 text-gray-400 dark:bg-gray-800'
-                                        } ${currentStep === step ? 'ring-2 ring-indigo-100 dark:ring-indigo-900/30' : ''} `}
-                                    >
-                                        {currentStep > step ? (
-                                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                            </svg>
-                                        ) : (
-                                            <span className="text-sm font-medium">{step}</span>
-                                        )}
-                                    </div>
-                                    <div
-                                        className={`text-xs font-medium transition-colors duration-300 ${
-                                            currentStep === step
-                                                ? 'text-indigo-600 dark:text-indigo-400'
-                                                : currentStep > step
-                                                  ? 'text-green-500'
-                                                  : 'text-gray-400 dark:text-gray-500'
-                                        }`}
-                                    >
-                                        {label}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-
-                    <form className="flex flex-col gap-4" onSubmit={submit}>
-                        <div className="grid max-h-[calc(100vh-24rem)] gap-4 overflow-y-auto">
-                            {currentStep === 1 && renderStep1()}
-                            {currentStep === 2 && renderStep2()}
-                            {currentStep === 3 && renderStep3()}
-                            {currentStep === 4 && renderStep4()}
-                        </div>
-
-                        <div className="mt-auto flex justify-between gap-4">
-                            {currentStep > 1 && (
-                                <Button type="button" variant="outline" onClick={prevStep} disabled={processing} className="h-auto px-3 py-1.5 text-sm">
-                                    Anterior
-                                </Button>
-                            )}
-
-                            {currentStep < 4 ? (
-                                <Button
-                                    type="button"
-                                    onClick={nextStep}
-                                    disabled={
-                                        processing || 
-                                        validatingRuc || 
-                                        (currentStep === 1 && (!rucValidated || errors.domain || !data.domain))
-                                    }
-                                    className="ml-auto h-auto w-full bg-gradient-to-r from-indigo-600 to-purple-600 px-3 py-1.5 text-sm text-white hover:from-indigo-700 hover:to-purple-700"
-                                >
-                                    Siguiente
-                                </Button>
-                            ) : (
-                                <Button
-                                    type="submit"
-                                    disabled={processing}
-                                    className="ml-auto h-auto w-full bg-gradient-to-r from-indigo-600 to-purple-600 px-3 py-1.5 text-sm text-white hover:from-indigo-700 hover:to-purple-700"
-                                >
-                                    {processing ? 'Creando...' : selectedPlan && selectedPlan.price > 0 ? 'Pagar y Crear Cuenta' : 'Crear Cuenta'}
-                                </Button>
-                            )}
-                        </div>
-
-                        <div className="text-center text-xs text-muted-foreground">
-                            ¿Ya tienes una cuenta? <TextLink href={route('login')}>Iniciar sesión</TextLink>
-                        </div>
-                    </form>
-
-                    <PaymentModal
-                        isOpen={showPaymentModal}
-                        onClose={() => setShowPaymentModal(false)}
-                        amount={selectedPlan ? calculatePrice(selectedPlan.price, data.billing_period) : 0}
-                        planId={selectedPlan?.id || 0}
-                        billingPeriod={data.billing_period}
-                        onPaymentSuccess={handlePaymentSuccess}
-                        onPaymentError={handlePaymentError} 
-                        email={data.email}            
+                    {/* Línea de progreso */}
+                    <div
+                        className="absolute top-4 left-0 -z-10 h-[2px] bg-green-500 transition-all duration-500 ease-in-out"
+                        style={{
+                            width: `${((currentStep - 1) / 3) * 100}%`,
+                        }}
                     />
-                </>
-            )}
+
+                    {/* Indicadores de pasos */}
+                    {[
+                        { step: 1, label: 'Empresa' },
+                        { step: 2, label: 'Detalles' },
+                        { step: 3, label: 'Cuenta' },
+                        { step: 4, label: 'Pago' },
+                    ].map(({ step, label }) => (
+                        <div key={step} className="relative flex flex-col items-center">
+                            <div
+                                className={`mb-1 flex h-8 w-8 items-center justify-center rounded-full transition-all duration-300 ease-in-out ${
+                                    currentStep === step
+                                        ? 'bg-indigo-600 text-white'
+                                        : currentStep > step
+                                          ? 'bg-green-500 text-white'
+                                          : 'bg-gray-100 text-gray-400 dark:bg-gray-800'
+                                } ${currentStep === step ? 'ring-2 ring-indigo-100 dark:ring-indigo-900/30' : ''} `}
+                            >
+                                {currentStep > step ? (
+                                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                    </svg>
+                                ) : (
+                                    <span className="text-sm font-medium">{step}</span>
+                                )}
+                            </div>
+                            <div
+                                className={`text-xs font-medium transition-colors duration-300 ${
+                                    currentStep === step
+                                        ? 'text-indigo-600 dark:text-indigo-400'
+                                        : currentStep > step
+                                          ? 'text-green-500'
+                                          : 'text-gray-400 dark:text-gray-500'
+                                }`}
+                            >
+                                {label}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            <form className="flex flex-col gap-4" onSubmit={submit}>
+                <div className="grid max-h-[calc(100vh-24rem)] gap-4 overflow-y-auto">
+                    {currentStep === 1 && renderStep1()}
+                    {currentStep === 2 && renderStep2()}
+                    {currentStep === 3 && renderStep3()}
+                    {currentStep === 4 && renderStep4()}
+                </div>
+
+                <div className="mt-auto flex justify-between gap-4">
+                    {currentStep > 1 && (
+                        <Button type="button" variant="outline" onClick={prevStep} disabled={processing} className="h-auto px-3 py-1.5 text-sm">
+                            Anterior
+                        </Button>
+                    )}
+
+                    {currentStep < 4 ? (
+                        <Button
+                            type="button"
+                            onClick={nextStep}
+                            disabled={
+                                processing || 
+                                validatingRuc || 
+                                (currentStep === 1 && (!rucValidated || errors.domain || !data.domain))
+                            }
+                            className="ml-auto h-auto w-full bg-gradient-to-r from-indigo-600 to-purple-600 px-3 py-1.5 text-sm text-white hover:from-indigo-700 hover:to-purple-700"
+                        >
+                            Siguiente
+                        </Button>
+                    ) : (
+                        <Button
+                            type="button"
+                            onClick={(e) => submit(e)}
+                            disabled={processing}
+                            className="ml-auto h-auto w-full bg-gradient-to-r from-indigo-600 to-purple-600 px-3 py-1.5 text-sm text-white hover:from-indigo-700 hover:to-purple-700"
+                        >
+                            {processing ? 'Creando...' : selectedPlan ? 'Pagar y Crear Cuenta' : 'Crear Cuenta'}
+                        </Button>
+                    )}
+                </div>
+
+                <div className="text-center text-xs text-muted-foreground">
+                    ¿Ya tienes una cuenta? <TextLink href={route('login')}>Iniciar sesión</TextLink>
+                </div>
+            </form>
+
+            <PaymentModal
+                isOpen={showPaymentModal}
+                onClose={() => setShowPaymentModal(false)}
+                amount={selectedPlan ? calculatePrice(selectedPlan.price, data.billing_period) : 0}
+                planId={selectedPlan?.id || 0}
+                billingPeriod={data.billing_period}
+                onPaymentSuccess={handlePaymentSuccess}
+                onPaymentError={handlePaymentError}
+            />
         </AuthLayout>
     );
 }

@@ -33,7 +33,7 @@ class SubscriptionPlanSeeder extends Seeder
             [
                 'name' => 'Plan Profesional',
                 'slug' => 'professional',
-                'price' => 199,
+                'price' => 59.99,
                 'billing_period' => 'monthly',
                 'invoice_limit' => 500,
                 'features' => [
@@ -50,7 +50,7 @@ class SubscriptionPlanSeeder extends Seeder
             [
                 'name' => 'Plan Empresarial',
                 'slug' => 'enterprise',
-                'price' => 399,
+                'price' => 99.99,
                 'billing_period' => 'monthly',
                 'invoice_limit' => 0, // ilimitado
                 'features' => [

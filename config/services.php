@@ -70,4 +70,12 @@ return [
         'private_key' => env('DATAFAST_PRIVATE_KEY'),
     ],
 
+    'payphone' => [
+        'token' => env('PAYPHONE_TOKEN'),
+        'private_key' => env('PAYPHONE_PRIVATE_KEY'),
+        'public_key' => env('PAYPHONE_PUBLIC_KEY'),
+        'client_id' => env('PAYPHONE_CLIENT_ID'),
+        'client_secret' => env('PAYPHONE_CLIENT_SECRET'),
+        'webhook_secret' => env('PAYPHONE_WEBHOOK_SECRET'),
+    ],
 ];

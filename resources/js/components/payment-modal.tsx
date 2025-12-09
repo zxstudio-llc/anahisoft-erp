@@ -1,167 +1,198 @@
-import type { PaymentApiResponse, PaymentRequest } from '@/common/interfaces/payment.interface';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import Api from '@/lib/api';
-import { LoaderCircle } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { LoaderCircle, CheckCircle2 } from 'lucide-react'
+import { useEffect, useState, useRef } from 'react'
+import { toast } from 'sonner'
 
 interface PaymentModalProps {
-    isOpen: boolean;
-    onClose: () => void;
-    amount: number;
-    planId: number;
-    billingPeriod: string;
-    onPaymentSuccess: (paymentId: string) => void;
-    onPaymentError: (error: Error) => void;
+  isOpen: boolean
+  onClose: () => void
+  amount: number
+  planId: number
+  billingPeriod: string
+  email: string
+  onPaymentSuccess: (transactionId: string) => void
+  onPaymentError: (error: Error) => void
 }
 
-const getCulqiErrorMessage = (error: string): string => {
-    const errorMessages: Record<string, string> = {
-        'card_declined': 'La tarjeta fue rechazada. Por favor, intente con otra tarjeta.',
-        'expired_card': 'La tarjeta está vencida.',
-        'insufficient_funds': 'La tarjeta no tiene fondos suficientes.',
-        'invalid_card': 'La tarjeta es inválida.',
-        'contact_issuer': 'Contacte al emisor de su tarjeta.',
-        'invalid_number': 'El número de tarjeta es inválido.',
-        'invalid_expiry_month': 'El mes de expiración es inválido.',
-        'invalid_expiry_year': 'El año de expiración es inválido.',
-        'invalid_cvc': 'El código de seguridad es inválido.',
-        'processing_error': 'Ocurrió un error procesando su pago. Por favor, intente nuevamente.',
-    };
+export default function PaymentModal({
+  isOpen,
+  onClose,
+  amount,
+  planId,
+  billingPeriod,
+  email,
+  onPaymentSuccess,
+  onPaymentError,
+}: PaymentModalProps) {
+  const [isCompleted, setIsCompleted] = useState(false)
+  const [transactionId, setTransactionId] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
+  const popupRef = useRef<Window | null>(null)
+  const popupCheckInterval = useRef<NodeJS.Timeout | null>(null)
 
-    return errorMessages[error] || 'Error al procesar el pago. Por favor, intente nuevamente.';
-};
+  // Limpiar al desmontar
+  useEffect(() => {
+    return () => {
+      if (popupCheckInterval.current) clearInterval(popupCheckInterval.current)
+    }
+  }, [])
 
-export default function PaymentModal({ isOpen, onClose, amount, planId, billingPeriod, onPaymentSuccess, onPaymentError }: PaymentModalProps) {
-    const [isProcessingPayment, setIsProcessingPayment] = useState(false);
-    const [isCulqiReady, setIsCulqiReady] = useState(false);
+  const handleClose = () => {
+    if (popupRef.current && !popupRef.current.closed) {
+      popupRef.current.close()
+    }
+    setIsCompleted(false)
+    setTransactionId(null)
+    setIsLoading(false)
+    onClose()
+  }
 
-    const handlePaymentError = (error: Error | unknown) => {
-        console.error('Error processing payment:', error);
+  // Iniciar pago
+  const handleStartPayment = async () => {
+    setIsLoading(true)
 
-        // Extract error code from the error message
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        const errorCode = typeof error === 'object' && error !== null ? (error as any).code : '';
-        
-        // Get user-friendly error message
-        const userMessage = errorCode 
-            ? getCulqiErrorMessage(errorCode)
-            : errorMessage || 'Error al procesar el pago';
+    try {
+      const csrfToken = (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || ''
 
-        onPaymentError(new Error(userMessage));
-    };
+      console.log('📤 Enviando:', { planId, billingPeriod, amount, email })
+      console.log('🔐 CSRF:', csrfToken ? '✓' : '✗')
 
-    useEffect(() => {
-        if (!isOpen) return;
+      const response = await fetch('/payment/create-link', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': csrfToken,
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify({
+          plan_id: planId,
+          billing_period: billingPeriod,
+          amount,
+          email,
+        }),
+      })
 
-        // Cargar el script de Culqi
-        const loadCulqi = async () => {
-            try {
-                const script = document.createElement('script');
-                script.src = 'https://checkout.culqi.com/js/v4';
-                script.async = true;
-                script.onload = () => {
-                    window.Culqi.publicKey = import.meta.env.VITE_CULQI_PUBLIC_KEY;
-                    setIsCulqiReady(true);
-                };
-                document.body.appendChild(script);
-            } catch (error) {
-                console.error('Error loading Culqi script:', error);
-                onPaymentError(new Error('Error al cargar el script de Culqi'));
-            }
-        };
+      const data = await response.json()
 
-        loadCulqi();
+      console.log('📥 Respuesta:', response.status, data)
 
-        return () => {
-            const script = document.querySelector('script[src="https://checkout.culqi.com/js/v4"]');
-            if (script) {
-                document.body.removeChild(script);
-            }
-        };
-    }, [isOpen, onPaymentError]);
+      if (!data.success) {
+        const errorMsg = data.message || 'Error al crear el link de pago'
+        console.error('❌', errorMsg)
+        toast.error(errorMsg)
+        setIsLoading(false)
+        onPaymentError(new Error(errorMsg))
+        return
+      }
 
-    const handlePayment = useCallback(() => {
-        if (!isCulqiReady) return;
+      const paymentUrl = data.payment_url
+      const clientTxnId = data.client_transaction_id
 
-        window.Culqi.settings({
-            title: 'Suscripción',
-            currency: 'PEN',
-            amount: amount * 100, // Culqi requires amount in cents
-            order: 'pgo_test_ID_DE_ORDEN',
-            language: 'es',
-        });
+      console.log('🔗 Link:', paymentUrl)
 
-        window.Culqi.options({
-            style: {
-                logo: '/logo.svg',
-                maincolor: '#6366F1',
-                buttontext: 'white',
-                maintext: '#4F46E5',
-                desctext: '#6B7280',
-            }
-        });
+      // Abrir PayPhone en popup
+      popupRef.current = window.open(
+        paymentUrl,
+        'PayPhonePayment',
+        'width=900,height=700,top=50,left=50,resizable=yes,scrollbars=yes'
+      )
 
-        window.Culqi.open();
+      if (!popupRef.current) {
+        toast.error('Por favor, habilita las ventanas emergentes')
+        setIsLoading(false)
+        return
+      }
 
-        window.culqi = async () => {
-            if (window.Culqi.token) {
-                try {
-                    setIsProcessingPayment(true);
+      console.log('✅ Popup abierto')
 
-                    const paymentData = {
-                        token: window.Culqi.token.id,
-                        email: window.Culqi.token.email,
-                        amount: amount,
-                        currency_code: 'PEN',
-                        plan_id: planId,
-                        billing_period: billingPeriod,
-                    } satisfies PaymentRequest;
+      // Monitorear cierre del popup
+      popupCheckInterval.current = setInterval(() => {
+        if (popupRef.current?.closed) {
+          clearInterval(popupCheckInterval.current!)
+          console.log('🔄 Popup cerrado, mostrando success')
+          
+          // Mostrar success (en producción verificarías en tu BD)
+          setTransactionId(clientTxnId)
+          setIsCompleted(true)
+          setIsLoading(false)
+          toast.success('¡Pago completado!')
+          onPaymentSuccess(clientTxnId)
+        }
+      }, 1000)
 
-                    const response = await Api.post<PaymentApiResponse>('/payment/process', paymentData);
+    } catch (error) {
+      console.error('Error:', error)
+      toast.error('Error al procesar el pago')
+      setIsLoading(false)
+      onPaymentError(error as Error)
+    }
+  }
 
-                    if (!response.success || !response.data) {
-                        throw new Error(response.message || 'Error al procesar el pago');
-                    }
+  // Auto-iniciar cuando abre
+  useEffect(() => {
+    if (isOpen && !isCompleted) {
+      handleStartPayment()
+    }
+  }, [isOpen])
 
-                    onPaymentSuccess(response.data.payment_id);
-                } catch (error) {
-                    handlePaymentError(error);
-                } finally {
-                    setIsProcessingPayment(false);
-                }
-            } else if (window.Culqi.error) {
-                handlePaymentError(window.Culqi.error);
-            }
-        };
-    }, [isCulqiReady, amount, planId, billingPeriod, onPaymentSuccess]);
+  return (
+    <Dialog open={isOpen} onOpenChange={handleClose}>
+      <DialogContent className="sm:max-w-[480px]">
+        <DialogHeader>
+          <DialogTitle>
+            {isCompleted ? '¡Pago exitoso!' : 'Procesando pago'}
+          </DialogTitle>
+          <DialogDescription>
+            {isCompleted
+              ? 'Tu transacción fue procesada correctamente. Gracias por tu compra.'
+              : 'Se abrirá una ventana para completar tu pago.'}
+          </DialogDescription>
+        </DialogHeader>
 
-    return (
-        <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="sm:max-w-[500px]">
-                <DialogHeader>
-                    <DialogTitle>Suscripción al Plan</DialogTitle>
-                    <DialogDescription>Complete los datos de su tarjeta para procesar la suscripción</DialogDescription>
-                </DialogHeader>
+        {!isCompleted ? (
+          <div className="mt-4 flex flex-col items-center justify-center gap-4">
+            <div className="flex items-center justify-center gap-2 py-4 text-gray-500">
+              <LoaderCircle className="h-5 w-5 animate-spin" />
+              <span>
+                {isLoading
+                  ? 'Abriendo PayPhone...'
+                  : 'Completando pago...'}
+              </span>
+            </div>
 
-                <div className="relative min-h-[100px] w-full">
-                    <div className="flex flex-col items-center justify-center gap-4">
-                        <button
-                            onClick={handlePayment}
-                            disabled={isProcessingPayment || !isCulqiReady}
-                            className="w-full rounded-md bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700 disabled:opacity-50"
-                        >
-                            {isProcessingPayment ? (
-                                <div className="flex items-center justify-center gap-2">
-                                    <LoaderCircle className="h-5 w-5 animate-spin" />
-                                    <span>Procesando...</span>
-                                </div>
-                            ) : (
-                                'Pagar con Tarjeta'
-                            )}
-                        </button>
-                    </div>
-                </div>
-            </DialogContent>
-        </Dialog>
-    );
+            {!isLoading && (
+              <div className="text-center text-sm text-gray-600 space-y-2">
+                <p>📍 Ventana de pago abierta</p>
+                <p>✅ Completa el pago en la otra ventana</p>
+                <p>⏳ Cuando termines, este modal se actualizará</p>
+              </div>
+            )}
+
+            <button
+              onClick={handleClose}
+              className="text-sm text-gray-500 underline hover:text-gray-700"
+            >
+              Cancelar
+            </button>
+          </div>
+        ) : (
+          <div className="mt-6 flex flex-col items-center justify-center text-center space-y-3">
+            <CheckCircle2 className="w-12 h-12 text-green-500" />
+            <p className="text-lg font-semibold">Pago completado con éxito</p>
+            {transactionId && (
+              <p className="text-sm text-gray-500">
+                ID: {transactionId}
+              </p>
+            )}
+            <button
+              onClick={handleClose}
+              className="mt-3 rounded-md bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700"
+            >
+              Cerrar
+            </button>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  )
 }

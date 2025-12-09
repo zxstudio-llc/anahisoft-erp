@@ -211,6 +211,8 @@ foreach (config('tenancy.central_domains') as $domain) {
         Route::middleware('guest')->group(function () {
             Route::get('register', [RegisteredUserController::class, 'create'])
                 ->name('register');
+            Route::get('/registration/validate/{tenantId}', [RegisteredUserController::class, 'validateRegistration'])
+                ->name('registration.validate');
 
             Route::post('register', [RegisteredUserController::class, 'store']);
 
@@ -223,19 +225,21 @@ foreach (config('tenancy.central_domains') as $domain) {
 
         // Rutas de pago
         Route::prefix('payment')->name('payment.')->group(function () {
-            Route::post('create-preference', [PaymentController::class, 'createPreference'])->name('create-preference');
-            Route::post('process', [PaymentController::class, 'processSubscriptionPayment'])->name('process');
-            Route::get('success', [PaymentController::class, 'success'])->name('success');
-            Route::get('failure', [PaymentController::class, 'failure'])->name('failure');
-            Route::get('pending', [PaymentController::class, 'pending'])->name('pending');
-            Route::post('webhook', [PaymentController::class, 'webhook'])->name('webhook');
+            // Route::post('create-preference', [PaymentController::class, 'createPreference'])->name('create-preference');
+
+            Route::post('create-link', [PaymentController::class, 'createPaymentLink']);
+            Route::post('check-status', [PaymentController::class, 'checkPaymentStatus']);
+            Route::get('callback', [PaymentController::class, 'paymentCallback']);
+            Route::get('success', [PaymentController::class, 'paymentCallback'])->name('success');
         });
 
         // Payment routes
-        Route::post('/payment/process', [PaymentController::class, 'processSubscriptionPayment'])->name('payment.process');
-        Route::get('/payment/success', [PaymentController::class, 'success'])->name('payment.success');
-        Route::get('/payment/failure', [PaymentController::class, 'failure'])->name('payment.failure');
-        Route::post('/payment/webhook', [PaymentController::class, 'webhook'])->name('payment.webhook');
+        // Route::post('/payment/process', [PaymentController::class, 'processSubscriptionPayment'])->name('payment.process');
+        // Route::get('/payment/success', [PaymentController::class, 'success'])->name('payment.success');
+        // Route::get('/payment/failure', [PaymentController::class, 'failure'])->name('payment.failure');
+        // Route::post('/payment/webhook', [PaymentController::class, 'webhook'])->name('payment.webhook');
+
+        
 
         require __DIR__ . '/auth.php';
     });

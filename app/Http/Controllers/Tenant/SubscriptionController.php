@@ -124,7 +124,7 @@ class SubscriptionController extends Controller
                             'name' => $plan->name,
                             'price' => (float)$plan->price,
                             'invoice_limit' => $plan->invoice_limit,
-                            'features' => is_string($plan->features) ? json_decode($plan->features, true) : [],
+                            'features' => $plan->features,
                             'is_featured' => $plan->is_featured,
                             'is_active' => $plan->is_active
                         ];
@@ -139,10 +139,19 @@ class SubscriptionController extends Controller
                 'subscriptionEndsAt' => $tenantWithPlan->subscription_ends_at,
             ];
 
+            $user = auth()->user();
+            $userAccount = [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'tenant_id' => $this->tenant->id,
+            ];
+
             return Inertia::render('Tenant/Subscription/Upgrade', [
                 'currentPlan' => $currentPlan,
                 'availablePlans' => $availablePlans,
-                'subscriptionStatus' => $subscriptionStatus
+                'subscriptionStatus' => $subscriptionStatus,
+                'userAccount' => $userAccount
             ]);
 
         } catch (\Exception $e) {

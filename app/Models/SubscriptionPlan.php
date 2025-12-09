@@ -13,8 +13,8 @@ class SubscriptionPlan extends Model
     /**
      * Constantes para los planes predeterminados
      */
-    const PLAN_BASIC = 'basic';
-    const PLAN_STANDARD = 'standard';
+    const PLAN_FREE = 'free';
+    const PLAN_PROFESSIONAL = 'professional';
     const PLAN_ENTERPRISE = 'enterprise';
 
     /**
@@ -69,11 +69,11 @@ class SubscriptionPlan extends Model
     public static function createDefaultPlans()
     {
         // Plan Básico
-        if (!self::where('slug', self::PLAN_BASIC)->exists()) {
+        if (!self::where('slug', self::PLAN_FREE)->exists()) {
             self::create([
-                'name' => 'Plan Básico',
-                'slug' => self::PLAN_BASIC,
-                'price' => 29.99,
+                'name' => 'Plan Gratuito',
+                'slug' => self::PLAN_FREE,
+                'price' => 0.00,
                 'billing_period' => 'monthly',
                 'invoice_limit' => 200, // 200 documentos por mes
                 'features' => [
@@ -88,10 +88,10 @@ class SubscriptionPlan extends Model
         }
         
         // Plan Estándar
-        if (!self::where('slug', self::PLAN_STANDARD)->exists()) {
+        if (!self::where('slug', self::PLAN_PROFESSIONAL)->exists()) {
             self::create([
-                'name' => 'Plan Estándar',
-                'slug' => self::PLAN_STANDARD,
+                'name' => 'Plan Profesional',
+                'slug' => self::PLAN_PROFESSIONAL,
                 'price' => 59.99,
                 'billing_period' => 'monthly',
                 'invoice_limit' => 500, // 500 documentos por mes
@@ -110,7 +110,7 @@ class SubscriptionPlan extends Model
         // Plan Enterprise
         if (!self::where('slug', self::PLAN_ENTERPRISE)->exists()) {
             self::create([
-                'name' => 'Plan Enterprise',
+                'name' => 'Plan Empresarial',
                 'slug' => self::PLAN_ENTERPRISE,
                 'price' => 99.99,
                 'billing_period' => 'monthly',

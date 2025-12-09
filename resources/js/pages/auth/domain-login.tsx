@@ -67,7 +67,7 @@ export default function DomainLogin({ status, canResetPassword, tenantData }: Do
                 <div className="grid gap-6">
                     {/* Email */}
                     <div className="grid gap-2">
-                        <Label htmlFor="email">Correo Electrónico</Label>
+                        <Label htmlFor="email">Correo Electrónicoaaa</Label>
                         <Input
                             id="email"
                             type="email"
